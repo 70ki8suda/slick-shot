@@ -7,29 +7,30 @@ final class ThumbnailStackView: NSView {
     private let foregroundSize = CGSize(width: 220, height: 148)
     private let backgroundSize = CGSize(width: 206, height: 136)
     private let presenter: ThumbnailStackPresenter
-    private let trashButton = HoverTrashButton(frame: .zero)
-    private let statusLabel = NSTextField(labelWithString: "TRANSIENT BUFFER")
+    private let closeButton = HoverCloseButton(frame: .zero)
     private let feedbackPlayer: CaptureFeedbackPlaying
+    private let onDeleteCurrent: (UUID) -> Void
     private let backdropGlowLayer = CAGradientLayer()
     private var hoverTrackingArea: NSTrackingArea?
-    private var isHoveringStack = false
+    private var isHoveringForeground = false
     private var foregroundFrame: CGRect = .zero
     private var currentPresentation = ThumbnailStackPresenter.Presentation(items: [])
     private var itemViews: [UUID: ThumbnailItemView] = [:]
 
     init(
         presenter: ThumbnailStackPresenter = ThumbnailStackPresenter(),
-        feedbackPlayer: CaptureFeedbackPlaying = NullCaptureFeedbackPlayer()
+        feedbackPlayer: CaptureFeedbackPlaying = NullCaptureFeedbackPlayer(),
+        onDeleteCurrent: @escaping (UUID) -> Void = { _ in }
     ) {
         self.presenter = presenter
         self.feedbackPlayer = feedbackPlayer
+        self.onDeleteCurrent = onDeleteCurrent
         super.init(frame: .zero)
         wantsLayer = true
         layer?.backgroundColor = NSColor.clear.cgColor
 
         configureBackdropGlow()
-        setupStatusLabel()
-        setupTrashButton()
+        setupCloseButton()
     }
 
     required init?(coder: NSCoder) {
@@ -52,9 +53,8 @@ final class ThumbnailStackView: NSView {
 
     override func layout() {
         super.layout()
-        layoutStatusLabel()
         layoutItemViews()
-        layoutTrashButton()
+        layoutCloseButton()
         backdropGlowLayer.frame = bounds.insetBy(dx: 12, dy: 8)
         refreshHoverStateFromMouseLocation()
     }
@@ -67,7 +67,7 @@ final class ThumbnailStackView: NSView {
 
         let trackingArea = NSTrackingArea(
             rect: bounds,
-            options: [.mouseEnteredAndExited, .activeAlways, .inVisibleRect],
+            options: [.mouseEnteredAndExited, .mouseMoved, .activeAlways, .inVisibleRect],
             owner: self,
             userInfo: nil
         )
@@ -77,31 +77,28 @@ final class ThumbnailStackView: NSView {
     }
 
     override func mouseEntered(with event: NSEvent) {
-        setHover(true)
+        refreshHoverStateFromMouseLocation()
     }
 
     override func mouseExited(with event: NSEvent) {
         setHover(false)
     }
 
-    private func setupTrashButton() {
-        trashButton.translatesAutoresizingMaskIntoConstraints = false
-        trashButton.isBordered = false
-        trashButton.image = NSImage(
-            systemSymbolName: "trash",
-            accessibilityDescription: "Delete thumbnail"
-        )
-        trashButton.alphaValue = 0
-        addSubview(trashButton)
+    override func mouseMoved(with event: NSEvent) {
+        refreshHoverStateFromMouseLocation()
     }
 
-    private func setupStatusLabel() {
-        statusLabel.translatesAutoresizingMaskIntoConstraints = false
-        statusLabel.font = NSFont.monospacedSystemFont(ofSize: 10, weight: .medium)
-        statusLabel.textColor = NSColor.white.withAlphaComponent(0.72)
-        statusLabel.alignment = .left
-        statusLabel.alphaValue = 0
-        addSubview(statusLabel)
+    private func setupCloseButton() {
+        closeButton.translatesAutoresizingMaskIntoConstraints = false
+        closeButton.isBordered = false
+        closeButton.image = NSImage(
+            systemSymbolName: "xmark.circle.fill",
+            accessibilityDescription: "Delete screenshot"
+        )
+        closeButton.alphaValue = 0
+        closeButton.target = self
+        closeButton.action = #selector(deleteCurrentRecord)
+        addSubview(closeButton)
     }
 
     private func configureBackdropGlow() {
@@ -161,26 +158,15 @@ final class ThumbnailStackView: NSView {
         }
     }
 
-    private func layoutStatusLabel() {
-        let width: CGFloat = 160
-        let height: CGFloat = 14
-        statusLabel.frame = CGRect(
-            x: 20,
-            y: bounds.maxY - 28,
-            width: width,
-            height: height
-        )
-    }
-
-    private func layoutTrashButton() {
-        let size: CGFloat = 28
+    private func layoutCloseButton() {
+        let size: CGFloat = 22
         guard foregroundFrame.isEmpty == false else {
-            trashButton.frame = CGRect(x: bounds.maxX - size, y: bounds.maxY - size, width: size, height: size)
+            closeButton.frame = CGRect(x: bounds.maxX - size, y: bounds.maxY - size, width: size, height: size)
             return
         }
 
-        let inset: CGFloat = 8
-        trashButton.frame = CGRect(
+        let inset: CGFloat = 6
+        closeButton.frame = CGRect(
             x: foregroundFrame.maxX - inset - size,
             y: foregroundFrame.maxY - inset - size,
             width: size,
@@ -230,13 +216,13 @@ final class ThumbnailStackView: NSView {
             return 1
         case .background(let depth):
             let base = depth == 1 ? 0.74 : 0.48
-            return isHoveringStack ? min(0.88, base + 0.1) : base
+            return isHoveringForeground ? min(0.88, base + 0.1) : base
         }
     }
 
     private func setHover(_ isHovering: Bool) {
-        guard isHoveringStack != isHovering else { return }
-        isHoveringStack = isHovering
+        guard isHoveringForeground != isHovering else { return }
+        isHoveringForeground = isHovering
         applyChromeState(animated: true)
         needsLayout = true
     }
@@ -246,23 +232,26 @@ final class ThumbnailStackView: NSView {
             setHover(false)
             return
         }
+        guard foregroundFrame.isEmpty == false else {
+            setHover(false)
+            return
+        }
 
         let mouseLocation = convert(window.mouseLocationOutsideOfEventStream, from: nil)
-        setHover(bounds.contains(mouseLocation))
+        let hoverRect = foregroundFrame.insetBy(dx: -8, dy: -8)
+        setHover(hoverRect.contains(mouseLocation))
     }
 
     private func applyChromeState(animated: Bool) {
         let hasItems = currentPresentation.items.isEmpty == false
-        let trashAlpha: CGFloat = hasItems && isHoveringStack ? 1 : 0
-        let labelAlpha: CGFloat = hasItems ? (isHoveringStack ? 1 : 0.72) : 0
-        let glowOpacity: Float = hasItems ? (isHoveringStack ? 1 : 0.72) : 0
+        let closeAlpha: CGFloat = hasItems && isHoveringForeground ? 1 : 0
+        let glowOpacity: Float = hasItems ? (isHoveringForeground ? 1 : 0.72) : 0
 
         if animated {
             NSAnimationContext.runAnimationGroup { context in
                 context.duration = 0.18
                 context.timingFunction = CAMediaTimingFunction(name: .easeOut)
-                trashButton.animator().alphaValue = trashAlpha
-                statusLabel.animator().alphaValue = labelAlpha
+                closeButton.animator().alphaValue = closeAlpha
             }
 
             CATransaction.begin()
@@ -271,29 +260,34 @@ final class ThumbnailStackView: NSView {
             backdropGlowLayer.opacity = glowOpacity
             CATransaction.commit()
         } else {
-            trashButton.alphaValue = trashAlpha
-            statusLabel.alphaValue = labelAlpha
+            closeButton.alphaValue = closeAlpha
             backdropGlowLayer.opacity = glowOpacity
         }
     }
 
+    @objc
+    private func deleteCurrentRecord() {
+        guard let id = currentPresentation.items.first?.id else { return }
+        onDeleteCurrent(id)
+    }
+
 }
 
-private final class HoverTrashButton: NSButton {
+private final class HoverCloseButton: NSButton {
     private var hoverTrackingArea: NSTrackingArea?
 
     override init(frame frameRect: NSRect) {
         super.init(frame: frameRect)
         wantsLayer = true
-        layer?.cornerRadius = 14
+        layer?.cornerRadius = 11
         layer?.borderWidth = 1
-        layer?.borderColor = NSColor(calibratedRed: 0.6, green: 0.96, blue: 1, alpha: 0.3).cgColor
-        layer?.backgroundColor = NSColor(calibratedRed: 0.04, green: 0.1, blue: 0.12, alpha: 0.42).cgColor
+        layer?.borderColor = NSColor.white.withAlphaComponent(0.22).cgColor
+        layer?.backgroundColor = NSColor(calibratedRed: 0.04, green: 0.1, blue: 0.12, alpha: 0.54).cgColor
         layer?.shadowColor = NSColor(calibratedRed: 0.34, green: 0.86, blue: 1, alpha: 0.34).cgColor
-        layer?.shadowOpacity = 0.18
-        layer?.shadowRadius = 14
-        layer?.shadowOffset = CGSize(width: 0, height: 8)
-        contentTintColor = NSColor.white.withAlphaComponent(0.82)
+        layer?.shadowOpacity = 0.16
+        layer?.shadowRadius = 10
+        layer?.shadowOffset = CGSize(width: 0, height: 6)
+        contentTintColor = NSColor.white.withAlphaComponent(0.9)
         imagePosition = .imageOnly
     }
 
@@ -330,14 +324,14 @@ private final class HoverTrashButton: NSButton {
             calibratedRed: 0.08,
             green: 0.15,
             blue: 0.19,
-            alpha: isHovering ? 0.62 : 0.42
+            alpha: isHovering ? 0.72 : 0.54
         ).cgColor
         layer?.borderColor = NSColor(
-            calibratedRed: 0.7,
-            green: 0.98,
+            calibratedRed: 1,
+            green: 1,
             blue: 1,
-            alpha: isHovering ? 0.48 : 0.3
+            alpha: isHovering ? 0.34 : 0.22
         ).cgColor
-        contentTintColor = NSColor.white.withAlphaComponent(isHovering ? 0.98 : 0.82)
+        contentTintColor = NSColor.white.withAlphaComponent(isHovering ? 1 : 0.9)
     }
 }

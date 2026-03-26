@@ -14,7 +14,8 @@ import Testing
         hasPermission: true,
         result: .success(ScreenCapturePayload(
             imageData: Data([0xCA, 0xFE]),
-            sourceDisplay: "Display 1"
+            sourceDisplay: "Display 1",
+            selectionRect: CGRect(x: 10, y: 20, width: 30, height: 40)
         )),
         suspendCapture: true
     )
@@ -60,7 +61,8 @@ import Testing
         hasPermission: true,
         result: .success(ScreenCapturePayload(
             imageData: Data([0xBA, 0xBE]),
-            sourceDisplay: "Display"
+            sourceDisplay: "Display",
+            selectionRect: CGRect(x: 1441, y: 100, width: 1, height: 1)
         ))
     )
     let feedbackPlayer = TestCaptureFeedbackPlayer()
@@ -81,6 +83,7 @@ import Testing
     #expect(await waitUntil { store.activeRecords.count == 1 })
     #expect(settingsWindowController.showMissingPermissionMessageCallCount == 0)
     #expect(feedbackPlayer.captureCompletedCallCount == 1)
+    #expect(store.activeRecords.first?.selectionRect == CGRect(x: 800, y: 600, width: 1, height: 1))
 }
 
 @MainActor
@@ -93,7 +96,8 @@ import Testing
         interactiveResult: nil,
         result: .success(ScreenCapturePayload(
             imageData: Data([0xBA, 0xBE]),
-            sourceDisplay: "Display"
+            sourceDisplay: "Display",
+            selectionRect: CGRect(x: 1441, y: 100, width: 1, height: 1)
         ))
     )
     let feedbackPlayer = TestCaptureFeedbackPlayer()
@@ -124,7 +128,8 @@ import Testing
         hasPermission: true,
         result: .success(ScreenCapturePayload(
             imageData: Data([0xCA, 0xFE]),
-            sourceDisplay: "Display 1"
+            sourceDisplay: "Display 1",
+            selectionRect: CGRect(x: 10, y: 20, width: 30, height: 40)
         ))
     )
     let settingsWindowController = TestSettingsWindowController()
@@ -161,7 +166,8 @@ import Testing
         hasPermission: true,
         result: .success(ScreenCapturePayload(
             imageData: Data([0x01]),
-            sourceDisplay: "Display 1"
+            sourceDisplay: "Display 1",
+            selectionRect: CGRect(x: 10, y: 20, width: 30, height: 40)
         ))
     )
     let settingsWindowController = TestSettingsWindowController()
@@ -215,7 +221,8 @@ import Testing
         hasPermission: false,
         result: .success(ScreenCapturePayload(
             imageData: Data([0x01]),
-            sourceDisplay: "Display 1"
+            sourceDisplay: "Display 1",
+            selectionRect: CGRect(x: 10, y: 20, width: 30, height: 40)
         ))
     )
     let settingsWindowController = TestSettingsWindowController()
@@ -446,7 +453,8 @@ private final class TestScreenCaptureService: ScreenCaptureServiceProtocol {
         requestPermissionResult: Bool = false,
         interactiveResult: ScreenCapturePayload? = ScreenCapturePayload(
             imageData: Data([0xCA, 0xFE]),
-            sourceDisplay: "Display"
+            sourceDisplay: "Display",
+            selectionRect: CGRect(x: 800, y: 600, width: 1, height: 1)
         ),
         result: Result<ScreenCapturePayload, Error>,
         suspendCapture: Bool = false

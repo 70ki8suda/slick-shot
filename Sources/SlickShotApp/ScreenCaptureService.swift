@@ -39,6 +39,7 @@ struct DisplayCaptureRequest: Equatable {
 @MainActor
 final class ScreenCaptureService: ScreenCaptureServiceProtocol {
     private let screenProvider: @MainActor () -> [any ScreenCaptureScreen]
+    private let mouseLocationProvider: @MainActor () -> CGPoint
     private let permissionChecker: @MainActor () -> Bool
     private let permissionRequester: @MainActor () -> Bool
     private let legacyRegionCapturer: any LegacyRegionCapturing
@@ -46,6 +47,9 @@ final class ScreenCaptureService: ScreenCaptureServiceProtocol {
     init(
         screenProvider: @escaping @MainActor () -> [any ScreenCaptureScreen] = {
             NSScreen.screens
+        },
+        mouseLocationProvider: @escaping @MainActor () -> CGPoint = {
+            NSEvent.mouseLocation
         },
         permissionChecker: @escaping @MainActor () -> Bool = {
             CGPreflightScreenCaptureAccess()
@@ -56,6 +60,7 @@ final class ScreenCaptureService: ScreenCaptureServiceProtocol {
         legacyRegionCapturer: any LegacyRegionCapturing = QuartzLegacyRegionCapturer()
     ) {
         self.screenProvider = screenProvider
+        self.mouseLocationProvider = mouseLocationProvider
         self.permissionChecker = permissionChecker
         self.permissionRequester = permissionRequester
         self.legacyRegionCapturer = legacyRegionCapturer
@@ -112,10 +117,19 @@ final class ScreenCaptureService: ScreenCaptureServiceProtocol {
             return nil
         }
 
+        let anchorRect = Self.anchorRect(
+            for: mouseLocationProvider(),
+            screens: screenProvider()
+        )
+        let sourceDisplay = Self.sourceDisplay(
+            for: anchorRect,
+            screens: screenProvider()
+        )
         NSLog("SlickShot native screencapture success bytes=%ld", imageData.count)
         return ScreenCapturePayload(
             imageData: imageData,
-            sourceDisplay: "Selection"
+            sourceDisplay: sourceDisplay,
+            selectionRect: anchorRect
         )
     }
 
@@ -141,8 +155,35 @@ final class ScreenCaptureService: ScreenCaptureServiceProtocol {
         )
         return ScreenCapturePayload(
             imageData: pngData,
-            sourceDisplay: sourceDisplay
+            sourceDisplay: sourceDisplay,
+            selectionRect: selectionRect
         )
+    }
+
+    static func anchorRect(
+        for mouseLocation: CGPoint,
+        screens: [any ScreenCaptureScreen]
+    ) -> CGRect {
+        guard let screen = screens.first(where: { $0.frame.contains(mouseLocation) }) else {
+            return CGRect(origin: mouseLocation, size: CGSize(width: 1, height: 1))
+        }
+
+        let clampedPoint = CGPoint(
+            x: min(max(mouseLocation.x, screen.frame.minX), screen.frame.maxX - 1),
+            y: min(max(mouseLocation.y, screen.frame.minY), screen.frame.maxY - 1)
+        )
+        return CGRect(origin: clampedPoint, size: CGSize(width: 1, height: 1)).integral
+    }
+
+    static func sourceDisplay(
+        for anchorRect: CGRect,
+        screens: [any ScreenCaptureScreen]
+    ) -> String {
+        let point = CGPoint(x: anchorRect.midX, y: anchorRect.midY)
+        if let index = screens.firstIndex(where: { $0.frame.contains(point) }) {
+            return "Display \(index + 1)"
+        }
+        return "Selection"
     }
 
     static func captureRequests(
@@ -276,7 +317,8 @@ final class ScreenCaptureService: ScreenCaptureServiceProtocol {
             )
             return ScreenCapturePayload(
                 imageData: pngData,
-                sourceDisplay: sourceDisplay
+                sourceDisplay: sourceDisplay,
+                selectionRect: selectionRect
             )
         } catch {
             let nsError = error as NSError
@@ -295,7 +337,8 @@ final class ScreenCaptureService: ScreenCaptureServiceProtocol {
             }
             return ScreenCapturePayload(
                 imageData: pngData,
-                sourceDisplay: sourceDisplay
+                sourceDisplay: sourceDisplay,
+                selectionRect: selectionRect
             )
         }
     }

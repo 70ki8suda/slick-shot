@@ -6,6 +6,13 @@ import SlickShotCore
 struct ScreenCapturePayload: Equatable {
     let imageData: Data
     let sourceDisplay: String
+    let selectionRect: CGRect?
+
+    init(imageData: Data, sourceDisplay: String, selectionRect: CGRect? = nil) {
+        self.imageData = imageData
+        self.sourceDisplay = sourceDisplay
+        self.selectionRect = selectionRect
+    }
 }
 
 enum ScreenCaptureFlow {
@@ -114,7 +121,7 @@ final class CaptureCoordinator {
             _ = store.insert(
                 image: payload.imageData,
                 sourceDisplay: payload.sourceDisplay,
-                selectionRect: .zero
+                selectionRect: payload.selectionRect ?? .zero
             )
             feedbackPlayer.playCaptureCompleted()
         } catch {

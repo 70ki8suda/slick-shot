@@ -46,6 +46,26 @@ import Testing
 }
 
 @MainActor
+@Test func test_anchorRect_uses_mouse_location_screen_for_native_capture() {
+    let screens = [
+        TestScreen(frame: CGRect(x: 0, y: 0, width: 1512, height: 982)),
+        TestScreen(frame: CGRect(x: 1512, y: -98, width: 1920, height: 1080))
+    ]
+
+    let anchorRect = ScreenCaptureService.anchorRect(
+        for: CGPoint(x: 1600, y: 120),
+        screens: screens
+    )
+    let sourceDisplay = ScreenCaptureService.sourceDisplay(
+        for: anchorRect,
+        screens: screens
+    )
+
+    #expect(anchorRect == CGRect(x: 1600, y: 120, width: 1, height: 1))
+    #expect(sourceDisplay == "Display 2")
+}
+
+@MainActor
 @Test func test_capturePayloadWithFallback_usesLegacyCaptureWhenPermissionCheckerIsFalse() async throws {
     let fallbackImage = try #require(makeCGImage(size: CGSize(width: 40, height: 20)))
     let service = ScreenCaptureService(

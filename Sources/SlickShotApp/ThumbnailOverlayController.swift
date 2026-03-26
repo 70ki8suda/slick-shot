@@ -16,7 +16,13 @@ final class ThumbnailOverlayController: NSObject {
     ) {
         self.store = store
         self.presenter = presenter
-        self.stackView = ThumbnailStackView(presenter: presenter, feedbackPlayer: feedbackPlayer)
+        self.stackView = ThumbnailStackView(
+            presenter: presenter,
+            feedbackPlayer: feedbackPlayer,
+            onDeleteCurrent: { id in
+                store.delete(id: id)
+            }
+        )
         self.window = NSPanel(
             contentRect: NSRect(x: 0, y: 0, width: 300, height: 240),
             styleMask: [.borderless],
@@ -43,6 +49,7 @@ final class ThumbnailOverlayController: NSObject {
         window.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .ignoresCycle]
         window.ignoresMouseEvents = false
         window.hidesOnDeactivate = false
+        window.acceptsMouseMovedEvents = true
         window.contentView = stackView
     }
 
