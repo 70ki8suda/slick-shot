@@ -5,6 +5,27 @@ import Testing
 @testable import SlickShotApp
 
 @MainActor
+@Test func test_captureImage_usesLegacyRegionCaptureForSelectedRect() async throws {
+    let fallbackImage = try #require(makeCGImage(size: CGSize(width: 80, height: 50)))
+    let capturer = TestLegacyRegionCapturer(image: fallbackImage)
+    let service = ScreenCaptureService(
+        screenProvider: {
+            [
+                TestScreen(frame: CGRect(x: 0, y: 0, width: 1512, height: 982)),
+                TestScreen(frame: CGRect(x: 1512, y: -98, width: 1920, height: 1080))
+            ]
+        },
+        legacyRegionCapturer: capturer
+    )
+
+    let payload = try await service.captureImage(in: CGRect(x: 1600, y: 2, width: 300, height: 200))
+
+    #expect(capturer.capturedRects == [CGRect(x: 1600, y: 2, width: 300, height: 200)])
+    #expect(payload.sourceDisplay == "Display 2")
+    #expect(payload.imageData.isEmpty == false)
+}
+
+@MainActor
 @Test func test_capturePayloadWithFallback_usesLegacyCaptureWhenModernCaptureFailsAndPermissionIsGranted() async throws {
     let fallbackImage = try #require(makeCGImage(size: CGSize(width: 40, height: 20)))
     let service = ScreenCaptureService(
@@ -133,11 +154,17 @@ private enum TestScreenCaptureFailure: Error {
     case modernBackendFailed
 }
 
-private struct TestLegacyRegionCapturer: LegacyRegionCapturing {
+private final class TestLegacyRegionCapturer: LegacyRegionCapturing {
     let image: CGImage?
+    private(set) var capturedRects: [CGRect] = []
+
+    init(image: CGImage?) {
+        self.image = image
+    }
 
     func captureImage(in rect: CGRect) -> CGImage? {
-        image
+        capturedRects.append(rect)
+        return image
     }
 }
 

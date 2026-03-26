@@ -37,11 +37,15 @@ struct DisplayCaptureRequest: Equatable {
 
 @MainActor
 final class ScreenCaptureService: ScreenCaptureServiceProtocol {
+    private let screenProvider: @MainActor () -> [any ScreenCaptureScreen]
     private let permissionChecker: @MainActor () -> Bool
     private let permissionRequester: @MainActor () -> Bool
     private let legacyRegionCapturer: any LegacyRegionCapturing
 
     init(
+        screenProvider: @escaping @MainActor () -> [any ScreenCaptureScreen] = {
+            NSScreen.screens
+        },
         permissionChecker: @escaping @MainActor () -> Bool = {
             CGPreflightScreenCaptureAccess()
         },
@@ -50,6 +54,7 @@ final class ScreenCaptureService: ScreenCaptureServiceProtocol {
         },
         legacyRegionCapturer: any LegacyRegionCapturing = QuartzLegacyRegionCapturer()
     ) {
+        self.screenProvider = screenProvider
         self.permissionChecker = permissionChecker
         self.permissionRequester = permissionRequester
         self.legacyRegionCapturer = legacyRegionCapturer
@@ -74,31 +79,26 @@ final class ScreenCaptureService: ScreenCaptureServiceProtocol {
     func captureImage(in rect: CGRect) async throws -> ScreenCapturePayload {
         let selectionRect = rect.standardized.integral
         NSLog("SlickShot service captureImage rect=%@", NSStringFromRect(selectionRect))
-        let shareableContent = try await SCShareableContent.excludingDesktopWindows(
-            false,
-            onScreenWindowsOnly: true
-        )
-        let requests = Self.captureRequests(for: selectionRect, screens: shareableContent.displays)
+        let requests = Self.captureRequests(for: selectionRect, screens: screenProvider())
         NSLog(
-            "SlickShot service displays=%ld requests=%@",
-            shareableContent.displays.count,
+            "SlickShot service requests=%@",
             String(describing: requests)
         )
-        guard !requests.isEmpty else {
+        let sourceDisplay = requests.count == 1 ? "Display \(requests[0].displayIndex)" : "Multiple Displays"
+        guard let image = legacyRegionCapturer.captureImage(in: selectionRect) else {
             throw ScreenCaptureServiceError.failedToCreateImage
         }
-
-        let sourceDisplay = requests.count == 1 ? "Display \(requests[0].displayIndex)" : "Multiple Displays"
-        return try await capturePayloadWithFallback(
-            selectionRect: selectionRect,
-            sourceDisplay: sourceDisplay,
-            modernCapture: {
-                try await self.compositeImage(
-                    from: requests,
-                    displays: shareableContent.displays,
-                    in: selectionRect
-                )
-            }
+        guard let pngData = Self.pngData(from: image) else {
+            throw ScreenCaptureServiceError.failedToEncodeImage
+        }
+        NSLog(
+            "SlickShot quartz capture success sourceDisplay=%@ size=%ld",
+            sourceDisplay,
+            pngData.count
+        )
+        return ScreenCapturePayload(
+            imageData: pngData,
+            sourceDisplay: sourceDisplay
         )
     }
 
