@@ -11,6 +11,7 @@ final class CaptureOverlayView: NSView {
     private let lagFrameLayer = CAShapeLayer()
     private let lagCornerLayer = CAShapeLayer()
     private let lagGlowLayer = CAShapeLayer()
+    private let reticleTiming = CAMediaTimingFunction(controlPoints: 0.16, 0.88, 0.24, 1)
 
     override init(frame frameRect: NSRect) {
         super.init(frame: frameRect)
@@ -128,9 +129,9 @@ final class CaptureOverlayView: NSView {
         lagGlowLayer.opacity = 0
 
         lagFrameLayer.fillColor = NSColor.clear.cgColor
-        lagFrameLayer.strokeColor = NSColor(calibratedRed: 0.44, green: 0.92, blue: 1, alpha: 0.88).cgColor
-        lagFrameLayer.lineWidth = 1
-        lagFrameLayer.lineDashPattern = [12, 10]
+        lagFrameLayer.strokeColor = NSColor(calibratedRed: 0.44, green: 0.92, blue: 1, alpha: 0.92).cgColor
+        lagFrameLayer.lineWidth = 1.2
+        lagFrameLayer.lineJoin = .round
         lagFrameLayer.opacity = 0
 
         lagCornerLayer.fillColor = NSColor.clear.cgColor
@@ -164,8 +165,8 @@ final class CaptureOverlayView: NSView {
 
         CATransaction.begin()
         if animated {
-            CATransaction.setAnimationDuration(0.1)
-            CATransaction.setAnimationTimingFunction(CAMediaTimingFunction(name: .easeOut))
+            CATransaction.setAnimationDuration(0.16)
+            CATransaction.setAnimationTimingFunction(reticleTiming)
         } else {
             CATransaction.setDisableActions(true)
         }
