@@ -56,5 +56,7 @@ cat > "$CONTENTS_DIR/Info.plist" <<'PLIST'
 </plist>
 PLIST
 
+/usr/bin/codesign --force --deep --sign - "$APP_DIR"
+
 touch "$APP_DIR"
 echo "Installed $APP_DIR"
