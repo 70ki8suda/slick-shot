@@ -16,8 +16,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let store = ScreenshotStore()
         self.store = store
         overlayController = ThumbnailOverlayController(store: store)
-        seedStore(store)
+        if Self.shouldSeedDemoRecords() {
+            seedStore(store)
+        }
         overlayController?.show()
+    }
+
+    nonisolated static func shouldSeedDemoRecords(environment: [String: String] = ProcessInfo.processInfo.environment) -> Bool {
+#if DEBUG
+        environment["SLICKSHOT_SEED_THUMBNAILS"] == "1"
+#else
+        false
+#endif
     }
 
     private func seedStore(_ store: ScreenshotStore) {

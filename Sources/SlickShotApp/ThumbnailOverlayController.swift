@@ -54,18 +54,53 @@ final class ThumbnailOverlayController: NSObject {
     }
 
     private func positionWindow() {
-        guard let screen = NSScreen.main ?? NSScreen.screens.first else { return }
         let presentation = presenter.present(records: store.activeRecords)
-        let visibleCount = max(1, presentation.items.count)
-        let height = 176 + (CGFloat(max(0, visibleCount - 1)) * 8)
-        let width = 300
-        let inset: CGFloat = 18
-        let frame = CGRect(
-            x: screen.frame.maxX - CGFloat(width) - inset,
-            y: screen.frame.minY + inset,
-            width: CGFloat(width),
-            height: height
+        let preferredSize = CGSize(
+            width: 300,
+            height: 176 + (CGFloat(max(0, presentation.items.count - 1)) * 8)
+        )
+
+        guard let visibleFrame = Self.resolvedVisibleFrame(
+            sourceVisibleFrame: window.screen?.visibleFrame,
+            fallbackVisibleFrames: NSScreen.screens.map(\.visibleFrame)
+        ) else { return }
+
+        let frame = Self.makeWindowFrame(
+            preferredSize: preferredSize,
+            itemCount: presentation.items.count,
+            visibleFrame: visibleFrame
         )
         window.setFrame(frame, display: false)
+    }
+
+    nonisolated static func makeWindowFrame(
+        preferredSize: CGSize,
+        itemCount: Int,
+        visibleFrame: CGRect
+    ) -> CGRect {
+        let clampedSize = CGSize(
+            width: min(preferredSize.width, visibleFrame.width),
+            height: min(preferredSize.height, visibleFrame.height)
+        )
+
+        let origin = CGPoint(
+            x: max(visibleFrame.minX, visibleFrame.maxX - clampedSize.width),
+            y: max(visibleFrame.minY, visibleFrame.minY)
+        )
+
+        return CGRect(origin: origin, size: clampedSize)
+    }
+
+    nonisolated static func resolvedVisibleFrame(
+        sourceVisibleFrame: CGRect?,
+        fallbackVisibleFrames: [CGRect]
+    ) -> CGRect? {
+        if let sourceVisibleFrame {
+            return sourceVisibleFrame
+        }
+
+        return fallbackVisibleFrames.max { lhs, rhs in
+            lhs.width * lhs.height < rhs.width * rhs.height
+        }
     }
 }

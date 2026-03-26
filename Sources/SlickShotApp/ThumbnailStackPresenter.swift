@@ -36,13 +36,14 @@ struct ThumbnailStackPresenter {
     }
 
     func present(records: [ScreenshotRecord]) -> Presentation {
-        let visible = records
+        let visible = records.enumerated()
             .sorted(by: Self.sortNewestFirst)
             .prefix(maxVisibleItems)
 
-        let items = visible.enumerated().map { index, record in
-            let depth = index
-            let role: Item.Role = index == 0 ? .foreground : .background(depth: depth)
+        let items = visible.enumerated().map { visibleIndex, indexedRecord in
+            let record = indexedRecord.element
+            let depth = visibleIndex
+            let role: Item.Role = visibleIndex == 0 ? .foreground : .background(depth: depth)
             let step = CGFloat(depth)
             return Item(
                 id: record.id,
@@ -57,15 +58,18 @@ struct ThumbnailStackPresenter {
         return Presentation(items: items)
     }
 
-    private static func sortNewestFirst(lhs: ScreenshotRecord, rhs: ScreenshotRecord) -> Bool {
-        if lhs.createdAt != rhs.createdAt {
-            return lhs.createdAt > rhs.createdAt
+    private static func sortNewestFirst(
+        lhs: (offset: Int, element: ScreenshotRecord),
+        rhs: (offset: Int, element: ScreenshotRecord)
+    ) -> Bool {
+        if lhs.element.createdAt != rhs.element.createdAt {
+            return lhs.element.createdAt > rhs.element.createdAt
         }
 
-        if lhs.expiresAt != rhs.expiresAt {
-            return lhs.expiresAt > rhs.expiresAt
+        if lhs.offset != rhs.offset {
+            return lhs.offset < rhs.offset
         }
 
-        return lhs.id.uuidString > rhs.id.uuidString
+        return lhs.element.id.uuidString > rhs.element.id.uuidString
     }
 }
