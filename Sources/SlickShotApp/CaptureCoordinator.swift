@@ -10,7 +10,7 @@ struct ScreenCapturePayload: Equatable {
 @MainActor
 protocol ScreenCaptureServiceProtocol {
     func hasScreenRecordingPermission() -> Bool
-    func captureImage(in rect: CGRect) throws -> ScreenCapturePayload
+    func captureImage(in rect: CGRect) async throws -> ScreenCapturePayload
 }
 
 @MainActor
@@ -89,8 +89,14 @@ final class CaptureCoordinator {
 
         endActiveSession()
 
+        Task { [weak self] in
+            await self?.captureSelection(selectionRect)
+        }
+    }
+
+    private func captureSelection(_ selectionRect: CGRect) async {
         do {
-            let payload = try captureService.captureImage(in: selectionRect)
+            let payload = try await captureService.captureImage(in: selectionRect)
             _ = store.insert(
                 image: payload.imageData,
                 sourceDisplay: payload.sourceDisplay,

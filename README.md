@@ -2,6 +2,8 @@
 
 SlickShot is a macOS menu bar utility for transient screenshots.
 
+The capture backend uses ScreenCaptureKit screenshot APIs while preserving the existing region-selection and permission flow.
+
 ## Current feature set
 
 - Capture a selected screen region from the menu bar or the global hotkey.
