@@ -3,6 +3,12 @@ import AppKit
 @MainActor
 final class StatusItemController: NSObject {
     private let statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
+    private let onCaptureScreenshot: () -> Void
+
+    init(onCaptureScreenshot: @escaping () -> Void = {}) {
+        self.onCaptureScreenshot = onCaptureScreenshot
+        super.init()
+    }
 
     func install() {
         guard let button = statusItem.button else { return }
@@ -20,7 +26,7 @@ final class StatusItemController: NSObject {
     }
 
     @objc private func captureScreenshot() {
-        // Intentionally a no-op in Task 1.
+        onCaptureScreenshot()
     }
 
     @objc private func quitApp() {

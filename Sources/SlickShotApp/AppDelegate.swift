@@ -7,19 +7,34 @@ import SlickShotCore
 final class AppDelegate: NSObject, NSApplicationDelegate {
     private var statusItemController: StatusItemController?
     private var overlayController: ThumbnailOverlayController?
+    private var captureCoordinator: CaptureCoordinator?
+    private var settingsWindowController: SettingsWindowController?
     private var store: ScreenshotStore?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
-        statusItemController = StatusItemController()
-        statusItemController?.install()
-
         let store = ScreenshotStore()
         self.store = store
         overlayController = ThumbnailOverlayController(store: store)
+        let settingsWindowController = SettingsWindowController()
+        self.settingsWindowController = settingsWindowController
+        captureCoordinator = CaptureCoordinator(
+            store: store,
+            captureService: ScreenCaptureService(),
+            overlayFactory: LiveCaptureOverlaySessionFactory(),
+            settingsWindowController: settingsWindowController
+        )
+        statusItemController = StatusItemController(onCaptureScreenshot: { [weak self] in
+            self?.captureCoordinator?.startCapture()
+        })
+        statusItemController?.install()
         if Self.shouldSeedDemoRecords() {
             seedStore(store)
         }
         overlayController?.show()
+    }
+
+    func applicationDidBecomeActive(_ notification: Notification) {
+        store?.reconcileExpiry()
     }
 
     nonisolated static func shouldSeedDemoRecords(environment: [String: String] = ProcessInfo.processInfo.environment) -> Bool {
