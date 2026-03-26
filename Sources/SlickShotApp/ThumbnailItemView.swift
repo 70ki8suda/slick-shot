@@ -8,28 +8,34 @@ final class ThumbnailItemView: NSView {
     private var record: ScreenshotRecord?
     private var mouseDownEvent: NSEvent?
     private var hasStartedDrag = false
+    private var hoverTrackingArea: NSTrackingArea?
     private let sheenLayer = CAGradientLayer()
+    private let glowLayer = CAGradientLayer()
+    private let rimLayer = CAShapeLayer()
+    private let gridLayer = CAShapeLayer()
     private let accentLayer = CAShapeLayer()
     private let cornerLayer = CAShapeLayer()
+    private let scanlineLayer = CAGradientLayer()
+    private var isHovering = false
 
     init(frame frameRect: NSRect = .zero, feedbackPlayer: CaptureFeedbackPlaying = NullCaptureFeedbackPlayer()) {
         self.dragSessionProvider = DragSessionProvider(feedbackPlayer: feedbackPlayer)
         super.init(frame: frameRect)
         wantsLayer = true
-        layer?.cornerRadius = 18
+        layer?.cornerRadius = 20
         layer?.masksToBounds = true
         layer?.borderWidth = 1
-        layer?.borderColor = NSColor(calibratedRed: 0.55, green: 0.94, blue: 1, alpha: 0.52).cgColor
-        layer?.backgroundColor = NSColor(calibratedRed: 0.05, green: 0.09, blue: 0.12, alpha: 0.42).cgColor
-        layer?.shadowColor = NSColor(calibratedRed: 0.32, green: 0.84, blue: 1, alpha: 0.56).cgColor
-        layer?.shadowOpacity = 0.22
-        layer?.shadowRadius = 18
-        layer?.shadowOffset = CGSize(width: 0, height: 12)
+        layer?.borderColor = NSColor(calibratedRed: 0.63, green: 0.97, blue: 1, alpha: 0.34).cgColor
+        layer?.backgroundColor = NSColor(calibratedRed: 0.04, green: 0.08, blue: 0.11, alpha: 0.3).cgColor
+        layer?.shadowColor = NSColor(calibratedRed: 0.27, green: 0.8, blue: 0.98, alpha: 0.64).cgColor
+        layer?.shadowOpacity = 0.28
+        layer?.shadowRadius = 24
+        layer?.shadowOffset = CGSize(width: 0, height: 14)
 
         imageView.imageScaling = .scaleAxesIndependently
         imageView.translatesAutoresizingMaskIntoConstraints = false
         imageView.wantsLayer = true
-        imageView.layer?.cornerRadius = 16
+        imageView.layer?.cornerRadius = 18
         imageView.layer?.masksToBounds = true
         addSubview(imageView)
 
@@ -52,18 +58,68 @@ final class ThumbnailItemView: NSView {
         imageView.image = NSImage(data: record.displayThumbnailRepresentation)
     }
 
+    func playArrivalEffect() {
+        let sweep = CABasicAnimation(keyPath: "locations")
+        sweep.fromValue = [-0.15, 0, 0.18]
+        sweep.toValue = [0.82, 1, 1.18]
+        sweep.duration = 0.54
+        sweep.timingFunction = CAMediaTimingFunction(name: .easeOut)
+        sheenLayer.add(sweep, forKey: "arrivalSweep")
+
+        let halo = CABasicAnimation(keyPath: "opacity")
+        halo.fromValue = 0.82
+        halo.toValue = 0.34
+        halo.duration = 0.42
+        halo.timingFunction = CAMediaTimingFunction(name: .easeOut)
+        glowLayer.add(halo, forKey: "arrivalGlow")
+
+        let cornerPulse = CABasicAnimation(keyPath: "strokeEnd")
+        cornerPulse.fromValue = 0.12
+        cornerPulse.toValue = 1
+        cornerPulse.duration = 0.34
+        cornerPulse.timingFunction = CAMediaTimingFunction(name: .easeOut)
+        cornerLayer.add(cornerPulse, forKey: "arrivalCorners")
+    }
+
     override func layout() {
         super.layout()
         let overlayBounds = bounds.insetBy(dx: 1, dy: 1)
+        glowLayer.frame = overlayBounds.insetBy(dx: -10, dy: -10)
         sheenLayer.frame = overlayBounds
+        scanlineLayer.frame = overlayBounds
+        rimLayer.frame = overlayBounds
+        gridLayer.frame = overlayBounds
         accentLayer.frame = overlayBounds
         cornerLayer.frame = overlayBounds
-        accentLayer.path = NSBezierPath(
-            roundedRect: overlayBounds.insetBy(dx: 1.5, dy: 1.5),
-            xRadius: 16,
-            yRadius: 16
-        ).cgPath
+        let roundedRect = overlayBounds.insetBy(dx: 1.5, dy: 1.5)
+        accentLayer.path = NSBezierPath(roundedRect: roundedRect, xRadius: 18, yRadius: 18).cgPath
+        rimLayer.path = NSBezierPath(roundedRect: roundedRect.insetBy(dx: 5, dy: 5), xRadius: 14, yRadius: 14).cgPath
+        gridLayer.path = Self.gridPath(in: overlayBounds.insetBy(dx: 10, dy: 10), spacing: 22).cgPath
         cornerLayer.path = Self.cornerAccentPath(in: overlayBounds, length: 18, inset: 10).cgPath
+    }
+
+    override func updateTrackingAreas() {
+        super.updateTrackingAreas()
+        if let hoverTrackingArea {
+            removeTrackingArea(hoverTrackingArea)
+        }
+
+        let trackingArea = NSTrackingArea(
+            rect: bounds,
+            options: [.mouseEnteredAndExited, .activeAlways, .inVisibleRect],
+            owner: self,
+            userInfo: nil
+        )
+        addTrackingArea(trackingArea)
+        hoverTrackingArea = trackingArea
+    }
+
+    override func mouseEntered(with event: NSEvent) {
+        setHover(true)
+    }
+
+    override func mouseExited(with event: NSEvent) {
+        setHover(false)
     }
 
     override func mouseDown(with event: NSEvent) {
@@ -94,27 +150,88 @@ final class ThumbnailItemView: NSView {
     }
 
     private func configureOverlayLayers() {
+        glowLayer.colors = [
+            NSColor(calibratedRed: 0.8, green: 0.99, blue: 1, alpha: 0.16).cgColor,
+            NSColor(calibratedRed: 0.42, green: 0.93, blue: 1, alpha: 0.12).cgColor,
+            NSColor.clear.cgColor
+        ]
+        glowLayer.locations = [0, 0.42, 1]
+        glowLayer.startPoint = CGPoint(x: 0.08, y: 1)
+        glowLayer.endPoint = CGPoint(x: 0.9, y: 0.08)
+
         sheenLayer.colors = [
-            NSColor.white.withAlphaComponent(0.18).cgColor,
-            NSColor(calibratedRed: 0.72, green: 0.96, blue: 1, alpha: 0.08).cgColor,
+            NSColor.white.withAlphaComponent(0.28).cgColor,
+            NSColor(calibratedRed: 0.74, green: 0.97, blue: 1, alpha: 0.12).cgColor,
             NSColor.clear.cgColor
         ]
         sheenLayer.locations = [0, 0.35, 1]
         sheenLayer.startPoint = CGPoint(x: 0.08, y: 1)
         sheenLayer.endPoint = CGPoint(x: 0.92, y: 0)
 
+        scanlineLayer.colors = [
+            NSColor.clear.cgColor,
+            NSColor.white.withAlphaComponent(0.08).cgColor,
+            NSColor(calibratedRed: 0.6, green: 0.95, blue: 1, alpha: 0.12).cgColor,
+            NSColor.clear.cgColor
+        ]
+        scanlineLayer.locations = [0, 0.46, 0.54, 1]
+        scanlineLayer.startPoint = CGPoint(x: 0, y: 1)
+        scanlineLayer.endPoint = CGPoint(x: 0, y: 0)
+
+        rimLayer.fillColor = NSColor.clear.cgColor
+        rimLayer.strokeColor = NSColor.white.withAlphaComponent(0.16).cgColor
+        rimLayer.lineWidth = 1
+
+        gridLayer.fillColor = NSColor.clear.cgColor
+        gridLayer.strokeColor = NSColor(calibratedRed: 0.63, green: 0.96, blue: 1, alpha: 0.08).cgColor
+        gridLayer.lineWidth = 0.7
+
         accentLayer.fillColor = NSColor.clear.cgColor
-        accentLayer.strokeColor = NSColor(calibratedRed: 0.62, green: 0.96, blue: 1, alpha: 0.34).cgColor
-        accentLayer.lineWidth = 1
+        accentLayer.strokeColor = NSColor(calibratedRed: 0.62, green: 0.96, blue: 1, alpha: 0.42).cgColor
+        accentLayer.lineWidth = 1.05
 
         cornerLayer.fillColor = NSColor.clear.cgColor
-        cornerLayer.strokeColor = NSColor.white.withAlphaComponent(0.72).cgColor
-        cornerLayer.lineWidth = 1.4
+        cornerLayer.strokeColor = NSColor.white.withAlphaComponent(0.84).cgColor
+        cornerLayer.lineWidth = 1.6
         cornerLayer.lineCap = .round
 
+        layer?.addSublayer(glowLayer)
         layer?.addSublayer(sheenLayer)
+        layer?.addSublayer(scanlineLayer)
+        layer?.addSublayer(rimLayer)
+        layer?.addSublayer(gridLayer)
         layer?.addSublayer(accentLayer)
         layer?.addSublayer(cornerLayer)
+    }
+
+    private func setHover(_ isHovering: Bool) {
+        guard self.isHovering != isHovering else { return }
+        self.isHovering = isHovering
+
+        CATransaction.begin()
+        CATransaction.setAnimationDuration(0.18)
+        CATransaction.setAnimationTimingFunction(CAMediaTimingFunction(name: .easeOut))
+        layer?.borderColor = NSColor(
+            calibratedRed: 0.7,
+            green: 0.98,
+            blue: 1,
+            alpha: isHovering ? 0.52 : 0.34
+        ).cgColor
+        layer?.shadowOpacity = isHovering ? 0.38 : 0.28
+        layer?.shadowRadius = isHovering ? 28 : 24
+        accentLayer.strokeColor = NSColor(
+            calibratedRed: 0.68,
+            green: 0.98,
+            blue: 1,
+            alpha: isHovering ? 0.6 : 0.42
+        ).cgColor
+        gridLayer.strokeColor = NSColor(
+            calibratedRed: 0.63,
+            green: 0.96,
+            blue: 1,
+            alpha: isHovering ? 0.12 : 0.08
+        ).cgColor
+        CATransaction.commit()
     }
 
     private static func cornerAccentPath(in rect: CGRect, length: CGFloat, inset: CGFloat) -> NSBezierPath {
@@ -139,6 +256,26 @@ final class ThumbnailItemView: NSView {
         path.move(to: CGPoint(x: minX + length, y: minY))
         path.line(to: CGPoint(x: minX, y: minY))
         path.line(to: CGPoint(x: minX, y: minY + length))
+
+        return path
+    }
+
+    private static func gridPath(in rect: CGRect, spacing: CGFloat) -> NSBezierPath {
+        let path = NSBezierPath()
+
+        var x = rect.minX
+        while x <= rect.maxX {
+            path.move(to: CGPoint(x: x, y: rect.minY))
+            path.line(to: CGPoint(x: x, y: rect.maxY))
+            x += spacing
+        }
+
+        var y = rect.minY
+        while y <= rect.maxY {
+            path.move(to: CGPoint(x: rect.minX, y: y))
+            path.line(to: CGPoint(x: rect.maxX, y: y))
+            y += spacing
+        }
 
         return path
     }

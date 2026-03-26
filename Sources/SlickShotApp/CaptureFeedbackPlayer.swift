@@ -37,7 +37,7 @@ final class CaptureFeedbackPlayer: CaptureFeedbackPlaying {
         }
 
         activePlayers.removeAll { !$0.isPlaying }
-        player.volume = event == .captureCompleted ? 0.48 : 0.32
+        player.volume = event == .captureCompleted ? 0.42 : 0.26
         player.prepareToPlay()
         activePlayers.append(player)
         player.play()
@@ -47,17 +47,21 @@ final class CaptureFeedbackPlayer: CaptureFeedbackPlaying {
         switch event {
         case .captureCompleted:
             return makeWAV(
-                startFrequency: 760,
-                endFrequency: 1_340,
-                duration: 0.14,
-                overtoneGain: 0.18
+                startFrequency: 810,
+                endFrequency: 1_420,
+                duration: 0.16,
+                overtoneGain: 0.22,
+                transientMix: 0.12,
+                shimmerMix: 0.14
             )
         case .dropCompleted:
             return makeWAV(
-                startFrequency: 1_120,
-                endFrequency: 720,
-                duration: 0.1,
-                overtoneGain: 0.12
+                startFrequency: 1_260,
+                endFrequency: 760,
+                duration: 0.11,
+                overtoneGain: 0.16,
+                transientMix: 0.06,
+                shimmerMix: 0.08
             )
         }
     }
@@ -67,6 +71,8 @@ final class CaptureFeedbackPlayer: CaptureFeedbackPlaying {
         endFrequency: Double,
         duration: Double,
         overtoneGain: Double,
+        transientMix: Double,
+        shimmerMix: Double,
         sampleRate: Double = 44_100
     ) -> Data {
         let frameCount = max(1, Int(sampleRate * duration))
@@ -98,12 +104,18 @@ final class CaptureFeedbackPlayer: CaptureFeedbackPlaying {
 
         for sampleIndex in 0..<frameCount {
             let progress = Double(sampleIndex) / Double(max(frameCount - 1, 1))
-            let envelope = sin(.pi * progress)
+            let envelope = pow(sin(.pi * progress), 1.35)
             let easedProgress = progress * progress * (3 - (2 * progress))
             let frequency = startFrequency + ((endFrequency - startFrequency) * easedProgress)
             let theta = 2 * Double.pi * frequency * (Double(sampleIndex) / sampleRate)
             let overtoneTheta = theta * 1.84
-            let signal = (sin(theta) * 0.84) + (sin(overtoneTheta) * overtoneGain)
+            let shimmerTheta = theta * 2.76
+            let transientEnvelope = exp(-14 * progress)
+            let transientTheta = 2 * Double.pi * 2_800 * (Double(sampleIndex) / sampleRate)
+            let signal = (sin(theta) * 0.82)
+                + (sin(overtoneTheta) * overtoneGain)
+                + (sin(shimmerTheta) * shimmerMix)
+                + (sin(transientTheta) * transientMix * transientEnvelope)
             let sample = Int16(max(-1, min(1, signal * envelope * 0.92)) * Double(Int16.max))
             append(sample)
         }

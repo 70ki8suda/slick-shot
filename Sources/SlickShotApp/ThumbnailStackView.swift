@@ -76,12 +76,13 @@ final class ThumbnailStackView: NSView {
         }
 
         for item in currentPresentation.items {
+            let isNewView = itemViews[item.id] == nil
             let view = itemViews[item.id] ?? {
                 let newView = ThumbnailItemView(feedbackPlayer: feedbackPlayer)
                 newView.alphaValue = 0
                 newView.layer?.transform = CATransform3DConcat(
-                    CATransform3DMakeScale(0.94, 0.94, 1),
-                    CATransform3DMakeTranslation(0, 14, 0)
+                    CATransform3DMakeScale(0.9, 0.9, 1),
+                    CATransform3DMakeTranslation(0, 22, 0)
                 )
                 addSubview(newView)
                 itemViews[item.id] = newView
@@ -89,10 +90,13 @@ final class ThumbnailStackView: NSView {
             }()
             view.configure(with: item.record)
             NSAnimationContext.runAnimationGroup { context in
-                context.duration = 0.28
+                context.duration = item.role == .foreground ? 0.34 : 0.26
                 context.timingFunction = CAMediaTimingFunction(name: .easeOut)
                 view.animator().alphaValue = 1
                 view.animator().layer?.transform = CATransform3DIdentity
+            }
+            if isNewView {
+                view.playArrivalEffect()
             }
         }
     }
