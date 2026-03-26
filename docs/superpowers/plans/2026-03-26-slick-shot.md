@@ -20,6 +20,7 @@
 - Create: `Sources/SlickShotApp/AppDelegate.swift`
 - Create: `Sources/SlickShotApp/StatusItemController.swift`
 - Create: `Sources/SlickShotCore/ScreenshotRecord.swift`
+- Create: `Sources/SlickShotCore/ScreenshotStore.swift`
 - Create: `Tests/SlickShotCoreTests/ScreenshotStoreTests.swift`
 
 - [ ] **Step 1: Write the failing store tests**
@@ -74,20 +75,22 @@ git commit -m "feat: bootstrap SlickShot menu bar prototype"
 ```swift
 func test_markDropped_transitions_record() { ... }
 func test_expireRemovesOldRecordsAfterRetention() { ... }
-func test_visibleStack_returns_latest_three_records() { ... }
+func test_markDragging_pausesExpiryUntilDragEnds() { ... }
+func test_activeRecords_returns_newest_first() { ... }
 ```
 
 - [ ] **Step 2: Run test to verify it fails**
 
 Run: `swift test --filter ScreenshotStoreTests`
-Expected: FAIL because lifecycle and visible-stack behavior are missing
+Expected: FAIL because lifecycle and ordered active-record behavior are missing
 
 - [ ] **Step 3: Implement minimal lifecycle logic**
 
 Add:
 - `ScreenshotStatus`
 - retention expiry
-- visible stack selection for newest three records
+- ordered active record listing
+- `markDragging` transition and timer pause/resume behavior
 - drop/delete transitions
 
 - [ ] **Step 4: Run test to verify it passes**
@@ -116,8 +119,8 @@ git commit -m "feat: add screenshot lifecycle store"
 - [ ] **Step 1: Write failing tests for presentation ordering**
 
 ```swift
-func test_visibleStack_orders_newest_first() { ... }
-func test_visibleStack_caps_background_items_at_three_total() { ... }
+func test_overlayItems_orders_newest_first() { ... }
+func test_overlayItems_caps_background_items_at_three_total() { ... }
 ```
 
 - [ ] **Step 2: Run test to verify it fails**
@@ -175,13 +178,19 @@ Build:
 - cancel with `Escape`
 - capture selected rect into `NSImage`
 - insertion into `ScreenshotStore`
+- permission gating that routes missing permissions into the settings/status window instead of attempting capture
 
 - [ ] **Step 4: Verify manual capture works**
 
 Run: `swift run SlickShotApp`
 Expected: choosing `Capture Screenshot` opens the selector and produces an overlay thumbnail
 
-- [ ] **Step 5: Commit**
+- [ ] **Step 5: Verify missing-permission behavior**
+
+Run: `swift run SlickShotApp`
+Expected: on a machine without the required permission, capture does not fail silently and the settings/status window explains the missing access
+
+- [ ] **Step 6: Commit**
 
 ```bash
 git add Sources Tests
@@ -211,12 +220,18 @@ Expected: FAIL because the manager does not exist yet
 
 - [ ] **Step 3: Implement drag payload creation**
 
-Create temp PNG files on drag start, expose them through pasteboard/file URL drag payloads, and clean them up on successful drop, expiry, and manual delete.
+Create temp PNG files on drag start, expose them through pasteboard/file URL drag payloads, and clean them up on successful drop, rejected-drag recovery, expiry, manual delete, and startup recovery of stale temp files.
 
 - [ ] **Step 4: Verify manual drag behavior**
 
 Run: `swift run SlickShotApp`
 Expected: dragging a thumbnail into a file-accepting app transfers the image and removes it from SlickShot on success
+
+Run: `swift run SlickShotApp`
+Expected: if a drag is rejected, the thumbnail remains available and still expires normally later
+
+Run: `swift test --filter TemporaryFileManagerTests`
+Expected: PASS, including startup cleanup coverage for stale temporary files
 
 - [ ] **Step 5: Commit**
 
@@ -252,6 +267,7 @@ Add:
 - a default shortcut
 - Carbon hotkey registration
 - a small settings window with current shortcut text and permission state
+- startup cleanup trigger for stale temporary drag files
 
 - [ ] **Step 4: Verify the end-to-end flow**
 
