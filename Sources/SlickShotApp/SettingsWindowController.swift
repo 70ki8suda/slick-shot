@@ -3,11 +3,20 @@ import Foundation
 
 @MainActor
 final class SettingsWindowController: NSWindowController, SettingsWindowControlling {
+    private let shortcutDisplayProvider: () -> String
+    private let permissionStatusProvider: () -> String
     private let messageLabel = NSTextField(
         wrappingLabelWithString: "Screen Recording access is required for SlickShot to capture screenshots."
     )
+    private let shortcutValueLabel = NSTextField(labelWithString: "")
+    private let permissionValueLabel = NSTextField(labelWithString: "")
 
-    init() {
+    init(
+        shortcutDisplayProvider: @escaping () -> String = { HotkeyConfiguration.default.displayString },
+        permissionStatusProvider: @escaping () -> String = { "Unknown" }
+    ) {
+        self.shortcutDisplayProvider = shortcutDisplayProvider
+        self.permissionStatusProvider = permissionStatusProvider
         let window = NSWindow(
             contentRect: NSRect(x: 0, y: 0, width: 420, height: 180),
             styleMask: [.titled, .closable],
@@ -24,7 +33,12 @@ final class SettingsWindowController: NSWindowController, SettingsWindowControll
     }
 
     func showMissingPermissionMessage() {
+        showSettingsWindow()
+    }
+
+    func showSettingsWindow() {
         guard let window else { return }
+        refreshStatus()
         NSApplication.shared.activate(ignoringOtherApps: true)
         showWindow(nil)
         window.center()
@@ -40,7 +54,7 @@ final class SettingsWindowController: NSWindowController, SettingsWindowControll
     }
 
     private func configureWindow(_ window: NSWindow) {
-        window.title = "SlickShot Permissions"
+        window.title = "SlickShot Settings"
 
         let button = NSButton(
             title: "Open Screen Recording Settings",
@@ -51,8 +65,15 @@ final class SettingsWindowController: NSWindowController, SettingsWindowControll
 
         messageLabel.lineBreakMode = .byWordWrapping
         messageLabel.maximumNumberOfLines = 0
+        shortcutValueLabel.font = .monospacedSystemFont(ofSize: NSFont.systemFontSize, weight: .regular)
+        permissionValueLabel.font = .monospacedSystemFont(ofSize: NSFont.systemFontSize, weight: .regular)
 
-        let stackView = NSStackView(views: [messageLabel, button])
+        let stackView = NSStackView(views: [
+            messageLabel,
+            makeRow(title: "Shortcut", valueLabel: shortcutValueLabel),
+            makeRow(title: "Permission", valueLabel: permissionValueLabel),
+            button
+        ])
         stackView.orientation = .vertical
         stackView.alignment = .leading
         stackView.spacing = 16
@@ -70,5 +91,20 @@ final class SettingsWindowController: NSWindowController, SettingsWindowControll
             stackView.topAnchor.constraint(equalTo: contentView.topAnchor),
             stackView.bottomAnchor.constraint(lessThanOrEqualTo: contentView.bottomAnchor)
         ])
+    }
+
+    private func refreshStatus() {
+        shortcutValueLabel.stringValue = shortcutDisplayProvider()
+        permissionValueLabel.stringValue = permissionStatusProvider()
+    }
+
+    private func makeRow(title: String, valueLabel: NSTextField) -> NSStackView {
+        let titleLabel = NSTextField(labelWithString: title)
+        titleLabel.font = .boldSystemFont(ofSize: NSFont.systemFontSize)
+        let row = NSStackView(views: [titleLabel, valueLabel])
+        row.orientation = .horizontal
+        row.alignment = .firstBaseline
+        row.spacing = 8
+        return row
     }
 }

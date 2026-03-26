@@ -16,7 +16,10 @@ let package = Package(
         ),
         .executableTarget(
             name: "SlickShotApp",
-            dependencies: ["SlickShotCore"]
+            dependencies: ["SlickShotCore"],
+            linkerSettings: [
+                .linkedFramework("Carbon")
+            ]
         ),
         .testTarget(
             name: "SlickShotAppTests",

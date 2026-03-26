@@ -9,24 +9,45 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var overlayController: ThumbnailOverlayController?
     private var captureCoordinator: CaptureCoordinator?
     private var settingsWindowController: SettingsWindowController?
+    private var hotkeyMonitor: HotkeyMonitor?
     private var store: ScreenshotStore?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         let store = ScreenshotStore()
         self.store = store
+        let hotkeyConfiguration = HotkeyConfiguration()
+        let captureService = ScreenCaptureService()
         overlayController = ThumbnailOverlayController(store: store)
-        let settingsWindowController = SettingsWindowController()
+        let settingsWindowController = SettingsWindowController(
+            shortcutDisplayProvider: { hotkeyConfiguration.displayString },
+            permissionStatusProvider: {
+                captureService.hasScreenRecordingPermission() ? "Granted" : "Missing"
+            }
+        )
         self.settingsWindowController = settingsWindowController
         captureCoordinator = CaptureCoordinator(
             store: store,
-            captureService: ScreenCaptureService(),
+            captureService: captureService,
             overlayFactory: LiveCaptureOverlaySessionFactory(),
             settingsWindowController: settingsWindowController
         )
-        statusItemController = StatusItemController(onCaptureScreenshot: { [weak self] in
-            self?.captureCoordinator?.startCapture()
-        })
+        statusItemController = StatusItemController(
+            hotkeyDisplayStringProvider: { hotkeyConfiguration.displayString },
+            onCaptureScreenshot: { [weak self] in
+                self?.startCapture()
+            },
+            onOpenSettings: { [weak self] in
+                self?.settingsWindowController?.showSettingsWindow()
+            }
+        )
         statusItemController?.install()
+        hotkeyMonitor = HotkeyMonitor(
+            configuration: hotkeyConfiguration,
+            onHotkeyPressed: { [weak self] in
+                self?.startCapture()
+            }
+        )
+        hotkeyMonitor?.start()
         if Self.shouldSeedDemoRecords() {
             seedStore(store)
         }
@@ -43,6 +64,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 #else
         false
 #endif
+    }
+
+    private func startCapture() {
+        captureCoordinator?.startCapture()
     }
 
     private func seedStore(_ store: ScreenshotStore) {
