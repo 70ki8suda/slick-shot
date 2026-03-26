@@ -27,7 +27,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 self?.hotkeyConfiguration.displayString ?? HotkeyConfiguration.default.displayString
             },
             permissionStatusProvider: {
-                captureService.hasScreenRecordingPermission() ? "Granted" : "Missing Screen Recording access"
+                "Uses macOS system capture"
             },
             onShortcutSaved: { [weak self] configuration in
                 self?.applyHotkeyConfiguration(configuration)

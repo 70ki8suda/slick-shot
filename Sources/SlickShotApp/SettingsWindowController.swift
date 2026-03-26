@@ -15,7 +15,7 @@ final class SettingsWindowController: NSWindowController, SettingsWindowControll
     private let onShortcutSaved: (HotkeyConfiguration) -> Void
     private let userDefaults: UserDefaults
     private let messageLabel = NSTextField(
-        wrappingLabelWithString: "Screen Recording access is required for SlickShot to capture screenshots."
+        wrappingLabelWithString: "SlickShot uses the shortcut below for instant screen captures."
     )
     private let shortcutValueLabel = NSTextField(labelWithString: "")
     private let permissionValueLabel = NSTextField(labelWithString: "")
@@ -48,7 +48,7 @@ final class SettingsWindowController: NSWindowController, SettingsWindowControll
     }
 
     func showMissingPermissionMessage() {
-        presentationMode = .missingPermission
+        presentationMode = .standard
         shortcutRecorderField.stopRecording()
         showSettingsWindow()
     }
@@ -126,7 +126,7 @@ final class SettingsWindowController: NSWindowController, SettingsWindowControll
         case .hotkeyOnboarding:
             "Choose a shortcut to finish setting up SlickShot. Click the recorder below, then press your preferred key combination."
         case .missingPermission:
-            "Screen Recording access is required for SlickShot to capture screenshots."
+            "SlickShot uses macOS system capture for screenshots."
         }
         shortcutValueLabel.stringValue = shortcutDisplayProvider()
         permissionValueLabel.stringValue = permissionStatusProvider()

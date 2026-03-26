@@ -1,10 +1,8 @@
 import AppKit
 import CoreGraphics
 import Foundation
-@preconcurrency import ScreenCaptureKit
 
 enum ScreenCaptureServiceError: Error {
-    case failedToCreateImage
     case failedToEncodeImage
     case failedToRunNativeCapture
 }
@@ -12,18 +10,23 @@ enum ScreenCaptureServiceError: Error {
 @MainActor
 final class ScreenCaptureService: ScreenCaptureServiceProtocol {
     var captureFlow: ScreenCaptureFlow {
-        .nativeInteractiveSelection
+        .overlayRectSelection
     }
 
     func hasScreenRecordingPermission() -> Bool {
-        CGPreflightScreenCaptureAccess()
+        true
     }
 
     func requestScreenRecordingPermission() -> Bool {
-        CGRequestScreenCaptureAccess()
+        true
     }
 
     func captureInteractiveImage() async throws -> ScreenCapturePayload? {
+        nil
+    }
+
+    func captureImage(in rect: CGRect) async throws -> ScreenCapturePayload {
+        let selectionRect = rect.standardized.integral
         let outputURL = FileManager.default.temporaryDirectory
             .appendingPathComponent(UUID().uuidString)
             .appendingPathExtension("png")
@@ -32,32 +35,12 @@ final class ScreenCaptureService: ScreenCaptureServiceProtocol {
             try? FileManager.default.removeItem(at: outputURL)
         }
 
-        let result = try await Self.runNativeCapture(outputURL: outputURL)
+        let result = try await Self.runNativeCapture(rect: selectionRect, outputURL: outputURL)
         guard result.terminationStatus == 0 else {
-            if hasScreenRecordingPermission() == false || result.standardError.localizedCaseInsensitiveContains("not authorized") {
-                throw NSError(domain: SCStreamErrorDomain, code: -3801)
-            }
-            return nil
+            throw ScreenCaptureServiceError.failedToRunNativeCapture
         }
 
-        guard
-            FileManager.default.fileExists(atPath: outputURL.path),
-            let data = try? Data(contentsOf: outputURL),
-            data.isEmpty == false
-        else {
-            return nil
-        }
-
-        return ScreenCapturePayload(
-            imageData: data,
-            sourceDisplay: "Display"
-        )
-    }
-
-    func captureImage(in rect: CGRect) async throws -> ScreenCapturePayload {
-        let selectionRect = rect.standardized.integral
-        let cgImage = try await captureCGImage(in: selectionRect)
-        guard let pngData = Self.pngData(from: cgImage) else {
+        guard let pngData = try? Data(contentsOf: outputURL), pngData.isEmpty == false else {
             throw ScreenCaptureServiceError.failedToEncodeImage
         }
 
@@ -65,31 +48,6 @@ final class ScreenCaptureService: ScreenCaptureServiceProtocol {
             imageData: pngData,
             sourceDisplay: Self.sourceDisplayName(for: selectionRect)
         )
-    }
-
-    private func captureCGImage(in rect: CGRect) async throws -> CGImage {
-        if let image = CGWindowListCreateImage(
-            rect,
-            .optionOnScreenOnly,
-            kCGNullWindowID,
-            [.bestResolution, .boundsIgnoreFraming]
-        ) {
-            return image
-        }
-
-        if #available(macOS 15.2, *) {
-            return try await SCScreenshotManager.captureImage(in: rect)
-        }
-
-        if let image = CGDisplayCreateImage(CGMainDisplayID(), rect: rect) {
-            return image
-        }
-
-        throw ScreenCaptureServiceError.failedToCreateImage
-    }
-
-    private static func pngData(from cgImage: CGImage) -> Data? {
-        NSBitmapImageRep(cgImage: cgImage).representation(using: .png, properties: [:])
     }
 
     private static func sourceDisplayName(for rect: CGRect) -> String {
@@ -101,13 +59,18 @@ final class ScreenCaptureService: ScreenCaptureServiceProtocol {
         return "Display"
     }
 
-    private static func runNativeCapture(outputURL: URL) async throws -> NativeCaptureResult {
+    private static func runNativeCapture(rect: CGRect, outputURL: URL) async throws -> NativeCaptureResult {
         try await withCheckedThrowingContinuation { continuation in
             let process = Process()
             let stderrPipe = Pipe()
 
             process.executableURL = URL(fileURLWithPath: "/usr/sbin/screencapture")
-            process.arguments = ["-i", "-x", "-t", "png", outputURL.path]
+            process.arguments = [
+                "-x",
+                "-t", "png",
+                "-R", "\(Int(rect.minX)),\(Int(rect.minY)),\(Int(rect.width)),\(Int(rect.height))",
+                outputURL.path
+            ]
             process.standardError = stderrPipe
             process.terminationHandler = { process in
                 let stderrData = stderrPipe.fileHandleForReading.readDataToEndOfFile()
