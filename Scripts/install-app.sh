@@ -96,7 +96,6 @@ swift build \
   --scratch-path "$SCRATCH_PATH" \
   -c "$BUILD_CONFIG"
 
-rm -rf "$APP_DIR"
 mkdir -p "$MACOS_DIR" "$RESOURCES_DIR"
 
 cp "$EXECUTABLE_PATH" "$MACOS_DIR/SlickShot"
