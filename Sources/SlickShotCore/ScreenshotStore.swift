@@ -8,6 +8,7 @@ public final class ScreenshotStore {
     private let now: () -> Date
     private var nextSequence: Int = 0
     private var records: [UUID: Entry] = [:]
+    private var pausedRetentionIntervals: [UUID: TimeInterval] = [:]
 
     public var onChange: (() -> Void)?
 
@@ -44,15 +45,42 @@ public final class ScreenshotStore {
         guard records.removeValue(forKey: id) != nil else {
             return
         }
+        pausedRetentionIntervals.removeValue(forKey: id)
         notifyChange()
     }
 
     public func markDragging(id: UUID) {
+        guard let entry = records[id], entry.record.status != .dragging else {
+            return
+        }
+
+        pausedRetentionIntervals[id] = max(0, entry.record.expiresAt.timeIntervalSince(now()))
         updateStatus(for: id, to: .dragging)
     }
 
     public func markDropped(id: UUID) {
-        updateStatus(for: id, to: .dropped)
+        guard let entry = records[id], entry.record.status != .dropped else {
+            return
+        }
+
+        let remaining = pausedRetentionIntervals.removeValue(forKey: id)
+        let expiresAt = remaining.map { now().addingTimeInterval($0) } ?? entry.record.expiresAt
+
+        records[id] = Entry(
+            sequence: entry.sequence,
+            record: ScreenshotRecord(
+                id: entry.record.id,
+                createdAt: entry.record.createdAt,
+                expiresAt: expiresAt,
+                status: .dropped,
+                imageRepresentation: entry.record.imageRepresentation,
+                displayThumbnailRepresentation: entry.record.displayThumbnailRepresentation,
+                sourceDisplay: entry.record.sourceDisplay,
+                selectionRect: entry.record.selectionRect,
+                temporaryBackingURL: entry.record.temporaryBackingURL
+            )
+        )
+        notifyChange()
     }
 
     public func expire() {
@@ -67,6 +95,7 @@ public final class ScreenshotStore {
         }
 
         expiredIDs.forEach { records[$0] = nil }
+        expiredIDs.forEach { pausedRetentionIntervals.removeValue(forKey: $0) }
         notifyChange()
     }
 

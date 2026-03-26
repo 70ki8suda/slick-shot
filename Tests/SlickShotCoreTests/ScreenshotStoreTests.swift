@@ -46,6 +46,12 @@ private extension Data {
     #expect(draggingRecord.status == .dragging)
 
     store.markDropped(id: id)
+    currentDate = currentDate.addingTimeInterval(1)
+    store.expire()
+
+    #expect(store.record(id: id) != nil)
+
+    currentDate = currentDate.addingTimeInterval(299)
     store.expire()
 
     #expect(store.record(id: id) == nil)
