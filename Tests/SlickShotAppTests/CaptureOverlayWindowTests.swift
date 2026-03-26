@@ -6,14 +6,12 @@ import Testing
 
 struct CaptureOverlayWindowTests {
     @MainActor
-    @Test func begin_capturesPreviousFrontmostAppAndReactivatesItOnEnd() {
+    @Test func end_doesNotReactivatePreviousFrontmostApp() {
         let previousApp = TestRunningApplication(bundleIdentifier: "com.openai.codex")
         let frontmostProvider = TestFrontmostApplicationProvider(frontmostApplication: previousApp)
-        let appActivator = TestApplicationActivator()
         let window = CaptureOverlayWindow(
             frame: CGRect(x: 0, y: 0, width: 100, height: 100),
             frontmostProvider: frontmostProvider,
-            appActivator: appActivator,
             onSelection: { _ in },
             onCancel: {}
         )
@@ -21,9 +19,8 @@ struct CaptureOverlayWindowTests {
         window.begin()
         window.end()
 
-        #expect(appActivator.activateCallCount == 0)
-        #expect(previousApp.activateCallCount == 1)
-        #expect(previousApp.lastActivationOptions == [])
+        #expect(previousApp.activateCallCount == 0)
+        #expect(previousApp.lastActivationOptions == nil)
     }
 
     @MainActor
@@ -31,11 +28,9 @@ struct CaptureOverlayWindowTests {
         let frontmostProvider = TestFrontmostApplicationProvider(
             frontmostApplication: TestRunningApplication(bundleIdentifier: AppBundleMetadata.bundleIdentifier)
         )
-        let appActivator = TestApplicationActivator()
         let window = CaptureOverlayWindow(
             frame: CGRect(x: 0, y: 0, width: 100, height: 100),
             frontmostProvider: frontmostProvider,
-            appActivator: appActivator,
             onSelection: { _ in },
             onCancel: {}
         )
@@ -44,7 +39,6 @@ struct CaptureOverlayWindowTests {
         window.end()
 
         let frontmostApp = frontmostProvider.frontmostApplication as? TestRunningApplication
-        #expect(appActivator.activateCallCount == 0)
         #expect(frontmostApp?.activateCallCount == 0)
     }
 }
@@ -59,15 +53,6 @@ private final class TestFrontmostApplicationProvider: FrontmostApplicationProvid
 
     func currentFrontmostApplication() -> (any RunningApplicationActivating)? {
         frontmostApplication
-    }
-}
-
-@MainActor
-private final class TestApplicationActivator: ApplicationActivating {
-    private(set) var activateCallCount = 0
-
-    func activateSlickShot() {
-        activateCallCount += 1
     }
 }
 

@@ -22,14 +22,14 @@ struct WorkspaceFrontmostApplicationProvider: FrontmostApplicationProviding {
 }
 
 @MainActor
-protocol ApplicationActivating {
-    func activateSlickShot()
+protocol ScreenFramesProviding {
+    func screenFrames() -> [CGRect]
 }
 
 @MainActor
-struct NSApplicationActivator: ApplicationActivating {
-    func activateSlickShot() {
-        NSApplication.shared.activate(ignoringOtherApps: true)
+struct NSScreenFramesProvider: ScreenFramesProviding {
+    func screenFrames() -> [CGRect] {
+        NSScreen.screens.map(\.frame)
     }
 }
 
@@ -37,19 +37,16 @@ struct NSApplicationActivator: ApplicationActivating {
 final class CaptureOverlayWindow: NSWindow, CaptureOverlaySession {
     private let overlayView: CaptureOverlayView
     private let frontmostProvider: FrontmostApplicationProviding
-    private let appActivator: ApplicationActivating
     private var previousFrontmostApplication: (any RunningApplicationActivating)?
 
     init(
-        frame: CGRect = CaptureOverlayWindow.defaultFrame(),
+        frame: CGRect,
         frontmostProvider: FrontmostApplicationProviding = WorkspaceFrontmostApplicationProvider(),
-        appActivator: ApplicationActivating = NSApplicationActivator(),
         onSelection: @escaping (CGRect) -> Void,
         onCancel: @escaping () -> Void
     ) {
         overlayView = CaptureOverlayView(frame: CGRect(origin: .zero, size: frame.size))
         self.frontmostProvider = frontmostProvider
-        self.appActivator = appActivator
         super.init(
             contentRect: frame,
             styleMask: [.borderless],
@@ -64,6 +61,7 @@ final class CaptureOverlayWindow: NSWindow, CaptureOverlaySession {
         isOpaque = false
         hasShadow = false
         level = .screenSaver
+        sharingType = .none
         collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .ignoresCycle, .transient]
         titleVisibility = .hidden
         titlebarAppearsTransparent = true
@@ -93,31 +91,52 @@ final class CaptureOverlayWindow: NSWindow, CaptureOverlaySession {
 
     func end() {
         orderOut(nil)
-        _ = previousFrontmostApplication?.activate(options: [])
         previousFrontmostApplication = nil
         close()
     }
+}
 
-    private static func defaultFrame() -> CGRect {
-        let screens = NSScreen.screens
-        if screens.isEmpty {
-            return .zero
-        }
+@MainActor
+private final class CaptureOverlaySessionGroup: CaptureOverlaySession {
+    let sessions: [CaptureOverlaySession]
 
-        return screens
-            .map(\.frame)
-            .reduce(into: CGRect.null) { partialResult, frame in
-                partialResult = partialResult.union(frame)
-            }
+    init(sessions: [CaptureOverlaySession]) {
+        self.sessions = sessions
+    }
+
+    func begin() {
+        sessions.forEach { $0.begin() }
+    }
+
+    func end() {
+        sessions.forEach { $0.end() }
     }
 }
 
 @MainActor
 struct LiveCaptureOverlaySessionFactory: CaptureOverlaySessionFactory {
+    private let screenFramesProvider: ScreenFramesProviding
+    private let sessionBuilder: (CGRect, @escaping (CGRect) -> Void, @escaping () -> Void) -> CaptureOverlaySession
+
+    init(
+        screenFramesProvider: ScreenFramesProviding = NSScreenFramesProvider(),
+        sessionBuilder: @escaping (CGRect, @escaping (CGRect) -> Void, @escaping () -> Void) -> CaptureOverlaySession = { frame, onSelection, onCancel in
+            CaptureOverlayWindow(frame: frame, onSelection: onSelection, onCancel: onCancel)
+        }
+    ) {
+        self.screenFramesProvider = screenFramesProvider
+        self.sessionBuilder = sessionBuilder
+    }
+
     func makeSession(
         onSelection: @escaping (CGRect) -> Void,
         onCancel: @escaping () -> Void
     ) -> CaptureOverlaySession {
-        CaptureOverlayWindow(onSelection: onSelection, onCancel: onCancel)
+        let sessions = screenFramesProvider
+            .screenFrames()
+            .map { frame in
+                sessionBuilder(frame, onSelection, onCancel)
+            }
+        return CaptureOverlaySessionGroup(sessions: sessions)
     }
 }
