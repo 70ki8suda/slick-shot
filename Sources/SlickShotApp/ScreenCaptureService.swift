@@ -1,5 +1,6 @@
 import AppKit
 import CoreGraphics
+import Foundation
 @preconcurrency import ScreenCaptureKit
 
 enum ScreenCaptureServiceError: Error {
@@ -61,7 +62,7 @@ final class ScreenCaptureService: ScreenCaptureServiceProtocol {
     }
 
     var captureFlow: ScreenCaptureFlow {
-        .overlayRectSelection
+        .nativeInteractiveSelection
     }
 
     func hasScreenRecordingPermission() -> Bool {
@@ -73,7 +74,49 @@ final class ScreenCaptureService: ScreenCaptureServiceProtocol {
     }
 
     func captureInteractiveImage() async throws -> ScreenCapturePayload? {
-        nil
+        let fileManager = FileManager.default
+        let captureDirectory = fileManager.temporaryDirectory.appendingPathComponent("slick-shot-native", isDirectory: true)
+        try fileManager.createDirectory(at: captureDirectory, withIntermediateDirectories: true)
+        let fileURL = captureDirectory.appendingPathComponent(UUID().uuidString).appendingPathExtension("png")
+
+        defer {
+            try? fileManager.removeItem(at: fileURL)
+        }
+
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/usr/sbin/screencapture")
+        process.arguments = ["-i", "-x", fileURL.path]
+
+        let terminationStatus = try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Int32, Error>) in
+            process.terminationHandler = { process in
+                continuation.resume(returning: process.terminationStatus)
+            }
+
+            do {
+                try process.run()
+            } catch {
+                continuation.resume(throwing: error)
+            }
+        }
+
+        guard terminationStatus == 0 else {
+            return nil
+        }
+
+        guard fileManager.fileExists(atPath: fileURL.path) else {
+            return nil
+        }
+
+        let imageData = try Data(contentsOf: fileURL)
+        guard imageData.isEmpty == false else {
+            return nil
+        }
+
+        NSLog("SlickShot native screencapture success bytes=%ld", imageData.count)
+        return ScreenCapturePayload(
+            imageData: imageData,
+            sourceDisplay: "Selection"
+        )
     }
 
     func captureImage(in rect: CGRect) async throws -> ScreenCapturePayload {
