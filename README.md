@@ -9,6 +9,7 @@ SlickShot is a macOS menu bar utility for transient screenshots.
 - Drag thumbnails into other apps via managed temporary PNG files.
 - Remove screenshots automatically after successful drag-and-drop or after the retention window expires.
 - Show the current shortcut and Screen Recording permission state in the settings window.
+- Prompt for a shortcut on first launch when no valid saved hotkey exists.
 
 ## Run locally
 
@@ -24,4 +25,6 @@ On first use, macOS Screen Recording permission is required. If permission is mi
 
 The default global shortcut is `Control-Option-Command-S`.
 
-SlickShot resolves the shortcut from its stored hotkey configuration and falls back to that default if the stored values are missing or invalid.
+On first launch, or whenever the stored hotkey values are missing or invalid, SlickShot opens its settings window in shortcut onboarding mode so you can record a replacement key combination.
+
+SlickShot resolves the shortcut from its stored hotkey configuration and falls back to that default if the stored values are missing or invalid until you save a new shortcut.

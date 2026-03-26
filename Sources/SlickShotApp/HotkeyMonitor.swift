@@ -43,6 +43,15 @@ struct HotkeyConfiguration: Equatable {
         return labels.joined(separator: "-")
     }
 
+    static func hasValidPersistedConfiguration(userDefaults: UserDefaults = .standard) -> Bool {
+        parse(userDefaults: userDefaults) != nil
+    }
+
+    func save(to userDefaults: UserDefaults = .standard) {
+        userDefaults.set(Int(keyCode), forKey: Self.keyCodeDefaultsKey)
+        userDefaults.set(Int(carbonModifiers), forKey: Self.modifiersDefaultsKey)
+    }
+
     private static func parse(userDefaults: UserDefaults) -> HotkeyConfiguration? {
         guard
             let rawKeyCode = userDefaults.object(forKey: keyCodeDefaultsKey) as? Int,
@@ -131,7 +140,7 @@ final class HotkeyMonitor {
         return noErr
     }
 
-    private let configuration: HotkeyConfiguration
+    private var configuration: HotkeyConfiguration
     private let onHotkeyPressed: @MainActor () -> Void
     private let hotKeyID = EventHotKeyID(signature: hotKeySignature, id: 1)
 
@@ -150,6 +159,11 @@ final class HotkeyMonitor {
         stop()
         installEventHandler()
         registerHotKey()
+    }
+
+    func update(configuration: HotkeyConfiguration) {
+        self.configuration = configuration
+        start()
     }
 
     func stop() {

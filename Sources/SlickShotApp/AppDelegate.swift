@@ -11,17 +11,23 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var settingsWindowController: SettingsWindowController?
     private var hotkeyMonitor: HotkeyMonitor?
     private var store: ScreenshotStore?
+    private var hotkeyConfiguration = HotkeyConfiguration()
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         let store = ScreenshotStore()
         self.store = store
-        let hotkeyConfiguration = HotkeyConfiguration()
+        hotkeyConfiguration = HotkeyConfiguration()
         let captureService = ScreenCaptureService()
         overlayController = ThumbnailOverlayController(store: store)
         let settingsWindowController = SettingsWindowController(
-            shortcutDisplayProvider: { hotkeyConfiguration.displayString },
+            shortcutDisplayProvider: { [weak self] in
+                self?.hotkeyConfiguration.displayString ?? HotkeyConfiguration.default.displayString
+            },
             permissionStatusProvider: {
                 captureService.hasScreenRecordingPermission() ? "Granted" : "Missing Screen Recording access"
+            },
+            onShortcutSaved: { [weak self] configuration in
+                self?.applyHotkeyConfiguration(configuration)
             }
         )
         self.settingsWindowController = settingsWindowController
@@ -32,7 +38,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             settingsWindowController: settingsWindowController
         )
         statusItemController = StatusItemController(
-            hotkeyDisplayStringProvider: { hotkeyConfiguration.displayString },
+            hotkeyDisplayStringProvider: { [weak self] in
+                self?.hotkeyConfiguration.displayString ?? HotkeyConfiguration.default.displayString
+            },
             onCaptureScreenshot: { [weak self] in
                 self?.startCapture()
             },
@@ -48,6 +56,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             }
         )
         hotkeyMonitor?.start()
+        if Self.shouldShowHotkeyOnboarding() {
+            settingsWindowController.showHotkeyOnboarding()
+        }
         if Self.shouldSeedDemoRecords() {
             seedStore(store)
         }
@@ -66,8 +77,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 #endif
     }
 
+    nonisolated static func shouldShowHotkeyOnboarding(userDefaults: UserDefaults = .standard) -> Bool {
+        HotkeyConfiguration.hasValidPersistedConfiguration(userDefaults: userDefaults) == false
+    }
+
     private func startCapture() {
         captureCoordinator?.startCapture()
+    }
+
+    private func applyHotkeyConfiguration(_ configuration: HotkeyConfiguration) {
+        hotkeyConfiguration = configuration
+        hotkeyMonitor?.update(configuration: configuration)
+        statusItemController?.install()
     }
 
     private func seedStore(_ store: ScreenshotStore) {
