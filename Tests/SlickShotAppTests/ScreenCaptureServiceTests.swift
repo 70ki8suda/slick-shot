@@ -5,9 +5,8 @@ import Testing
 @testable import SlickShotApp
 
 @MainActor
-@Test func test_captureImage_usesLegacyRegionCaptureForSelectedRect() async throws {
-    let fallbackImage = try #require(makeCGImage(size: CGSize(width: 80, height: 50)))
-    let capturer = TestLegacyRegionCapturer(image: fallbackImage)
+@Test func test_captureImage_usesNativeRectCaptureForSelectedRect() async throws {
+    let capturer = TestNativeRectCapturer(data: Data([0x01, 0x02, 0x03]))
     let service = ScreenCaptureService(
         screenProvider: {
             [
@@ -15,14 +14,34 @@ import Testing
                 TestScreen(frame: CGRect(x: 1512, y: -98, width: 1920, height: 1080))
             ]
         },
-        legacyRegionCapturer: capturer
+        nativeRectCapturer: capturer
     )
 
     let payload = try await service.captureImage(in: CGRect(x: 1600, y: 2, width: 300, height: 200))
 
     #expect(capturer.capturedRects == [CGRect(x: 1600, y: 2, width: 300, height: 200)])
+    #expect(capturer.captureBounds == [CGRect(x: 0, y: -98, width: 3432, height: 1080)])
     #expect(payload.sourceDisplay == "Display 2")
-    #expect(payload.imageData.isEmpty == false)
+    #expect(payload.imageData == Data([0x01, 0x02, 0x03]))
+}
+
+@MainActor
+@Test func test_captureFlow_prefers_overlay_selection_for_custom_hud() {
+    let service = ScreenCaptureService(
+        nativeRectCapturer: TestNativeRectCapturer(data: Data([0x01]))
+    )
+
+    #expect(service.captureFlow == .overlayRectSelection)
+}
+
+@MainActor
+@Test func test_screencaptureRect_converts_bottom_left_rect_into_cli_coordinates() {
+    let bounds = CGRect(x: 0, y: -98, width: 3432, height: 1080)
+    let rect = CGRect(x: 1600, y: 2, width: 300, height: 200)
+
+    let converted = ScreenCaptureService.screencaptureRect(for: rect, in: bounds)
+
+    #expect(converted == CGRect(x: 1600, y: 780, width: 300, height: 200))
 }
 
 @MainActor
@@ -185,6 +204,22 @@ private final class TestLegacyRegionCapturer: LegacyRegionCapturing {
     func captureImage(in rect: CGRect) -> CGImage? {
         capturedRects.append(rect)
         return image
+    }
+}
+
+private final class TestNativeRectCapturer: NativeRectCapturing {
+    let data: Data?
+    private(set) var capturedRects: [CGRect] = []
+    private(set) var captureBounds: [CGRect] = []
+
+    init(data: Data?) {
+        self.data = data
+    }
+
+    func captureImage(in rect: CGRect, within bounds: CGRect) async throws -> Data? {
+        capturedRects.append(rect)
+        captureBounds.append(bounds)
+        return data
     }
 }
 

@@ -6,6 +6,7 @@ import Foundation
 enum ScreenCaptureServiceError: Error {
     case failedToCreateImage
     case failedToEncodeImage
+    case missingScreenBounds
 }
 
 protocol ScreenCaptureScreen {
@@ -14,6 +15,11 @@ protocol ScreenCaptureScreen {
 
 protocol LegacyRegionCapturing {
     func captureImage(in rect: CGRect) -> CGImage?
+}
+
+@MainActor
+protocol NativeRectCapturing {
+    func captureImage(in rect: CGRect, within bounds: CGRect) async throws -> Data?
 }
 
 extension NSScreen: ScreenCaptureScreen {}
@@ -30,6 +36,47 @@ struct QuartzLegacyRegionCapturer: LegacyRegionCapturing {
     }
 }
 
+struct ScreencaptureRectCapturer: NativeRectCapturing {
+    func captureImage(in rect: CGRect, within bounds: CGRect) async throws -> Data? {
+        let fileManager = FileManager.default
+        let captureDirectory = fileManager.temporaryDirectory.appendingPathComponent("slick-shot-native-rect", isDirectory: true)
+        try fileManager.createDirectory(at: captureDirectory, withIntermediateDirectories: true)
+        let fileURL = captureDirectory.appendingPathComponent(UUID().uuidString).appendingPathExtension("png")
+
+        defer {
+            try? fileManager.removeItem(at: fileURL)
+        }
+
+        let convertedRect = ScreenCaptureService.screencaptureRect(for: rect, in: bounds)
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/usr/sbin/screencapture")
+        process.arguments = [
+            "-x",
+            "-R\(Int(convertedRect.minX)),\(Int(convertedRect.minY)),\(Int(convertedRect.width)),\(Int(convertedRect.height))",
+            fileURL.path
+        ]
+
+        let terminationStatus = try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Int32, Error>) in
+            process.terminationHandler = { process in
+                continuation.resume(returning: process.terminationStatus)
+            }
+
+            do {
+                try process.run()
+            } catch {
+                continuation.resume(throwing: error)
+            }
+        }
+
+        guard terminationStatus == 0, fileManager.fileExists(atPath: fileURL.path) else {
+            return nil
+        }
+
+        let imageData = try Data(contentsOf: fileURL)
+        return imageData.isEmpty ? nil : imageData
+    }
+}
+
 struct DisplayCaptureRequest: Equatable {
     let displayIndex: Int
     let globalRect: CGRect
@@ -42,6 +89,7 @@ final class ScreenCaptureService: ScreenCaptureServiceProtocol {
     private let mouseLocationProvider: @MainActor () -> CGPoint
     private let permissionChecker: @MainActor () -> Bool
     private let permissionRequester: @MainActor () -> Bool
+    private let nativeRectCapturer: any NativeRectCapturing
     private let legacyRegionCapturer: any LegacyRegionCapturing
 
     init(
@@ -57,17 +105,19 @@ final class ScreenCaptureService: ScreenCaptureServiceProtocol {
         permissionRequester: @escaping @MainActor () -> Bool = {
             CGRequestScreenCaptureAccess()
         },
+        nativeRectCapturer: any NativeRectCapturing = ScreencaptureRectCapturer(),
         legacyRegionCapturer: any LegacyRegionCapturing = QuartzLegacyRegionCapturer()
     ) {
         self.screenProvider = screenProvider
         self.mouseLocationProvider = mouseLocationProvider
         self.permissionChecker = permissionChecker
         self.permissionRequester = permissionRequester
+        self.nativeRectCapturer = nativeRectCapturer
         self.legacyRegionCapturer = legacyRegionCapturer
     }
 
     var captureFlow: ScreenCaptureFlow {
-        .nativeInteractiveSelection
+        .overlayRectSelection
     }
 
     func hasScreenRecordingPermission() -> Bool {
@@ -142,25 +192,25 @@ final class ScreenCaptureService: ScreenCaptureServiceProtocol {
             String(describing: requests)
         )
         let sourceDisplay = requests.count == 1 ? "Display \(requests[0].displayIndex)" : "Multiple Displays"
-        guard let image = legacyRegionCapturer.captureImage(in: selectionRect) else {
+        guard let screenBounds = Self.unionBounds(for: screenProvider()) else {
+            throw ScreenCaptureServiceError.missingScreenBounds
+        }
+        guard let imageData = try await nativeRectCapturer.captureImage(in: selectionRect, within: screenBounds) else {
             throw ScreenCaptureServiceError.failedToCreateImage
         }
-        guard let pngData = Self.pngData(from: image) else {
-            throw ScreenCaptureServiceError.failedToEncodeImage
-        }
         NSLog(
-            "SlickShot quartz capture success sourceDisplay=%@ size=%ld",
+            "SlickShot native rect capture success sourceDisplay=%@ size=%ld",
             sourceDisplay,
-            pngData.count
+            imageData.count
         )
         return ScreenCapturePayload(
-            imageData: pngData,
+            imageData: imageData,
             sourceDisplay: sourceDisplay,
             selectionRect: selectionRect
         )
     }
 
-    static func anchorRect(
+    nonisolated static func anchorRect(
         for mouseLocation: CGPoint,
         screens: [any ScreenCaptureScreen]
     ) -> CGRect {
@@ -175,7 +225,7 @@ final class ScreenCaptureService: ScreenCaptureServiceProtocol {
         return CGRect(origin: clampedPoint, size: CGSize(width: 1, height: 1)).integral
     }
 
-    static func sourceDisplay(
+    nonisolated static func sourceDisplay(
         for anchorRect: CGRect,
         screens: [any ScreenCaptureScreen]
     ) -> String {
@@ -186,7 +236,21 @@ final class ScreenCaptureService: ScreenCaptureServiceProtocol {
         return "Selection"
     }
 
-    static func captureRequests(
+    nonisolated static func unionBounds(for screens: [any ScreenCaptureScreen]) -> CGRect? {
+        screens.map(\.frame).reduce(into: CGRect.null) { partialResult, frame in
+            partialResult = partialResult.union(frame)
+        }.nullToNil
+    }
+
+    nonisolated static func screencaptureRect(for rect: CGRect, in bounds: CGRect) -> CGRect {
+        let normalizedRect = rect.standardized.integral
+        let normalizedBounds = bounds.standardized
+        let x = normalizedRect.minX - normalizedBounds.minX
+        let y = normalizedBounds.maxY - normalizedRect.maxY
+        return CGRect(x: x, y: y, width: normalizedRect.width, height: normalizedRect.height).integral
+    }
+
+    nonisolated static func captureRequests(
         for rect: CGRect,
         screens: [any ScreenCaptureScreen]
     ) -> [DisplayCaptureRequest] {
@@ -352,4 +416,10 @@ private struct CapturedDisplaySegment {
     let image: CGImage
     let rectInSelection: CGRect
     let scale: CGFloat
+}
+
+private extension CGRect {
+    var nullToNil: CGRect? {
+        isNull ? nil : self
+    }
 }
