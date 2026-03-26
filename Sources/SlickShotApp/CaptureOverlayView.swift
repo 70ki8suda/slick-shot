@@ -14,15 +14,25 @@ final class CaptureOverlayView: NSView {
     }
 
     override func draw(_ dirtyRect: NSRect) {
-        NSColor.black.withAlphaComponent(0.35).setFill()
+        NSColor(calibratedRed: 0.01, green: 0.05, blue: 0.08, alpha: 0.42).setFill()
         Self.dimmingRects(in: bounds, excluding: selectionRect).forEach { $0.fill() }
 
         guard let selectionRect else { return }
 
-        NSColor.white.setStroke()
-        let path = NSBezierPath(rect: selectionRect)
-        path.lineWidth = 2
-        path.stroke()
+        NSColor(calibratedRed: 0.42, green: 0.92, blue: 1, alpha: 0.08).setFill()
+        NSBezierPath(rect: selectionRect).fill()
+
+        drawScanlines(in: selectionRect)
+
+        let framePath = NSBezierPath(rect: selectionRect)
+        framePath.lineWidth = 1.4
+        NSColor(calibratedRed: 0.48, green: 0.95, blue: 1, alpha: 0.92).setStroke()
+        framePath.stroke()
+
+        let cornerPath = Self.cornerAccentPath(in: selectionRect, length: 16)
+        cornerPath.lineWidth = 2.4
+        NSColor.white.withAlphaComponent(0.86).setStroke()
+        cornerPath.stroke()
     }
 
     override func mouseDown(with event: NSEvent) {
@@ -122,5 +132,41 @@ final class CaptureOverlayView: NSView {
                 height: selectionRect.height
             )
         ].filter { !$0.isEmpty }
+    }
+
+    private func drawScanlines(in rect: CGRect) {
+        let path = NSBezierPath()
+        let step: CGFloat = 6
+        var y = rect.minY + step
+        while y < rect.maxY {
+            path.move(to: CGPoint(x: rect.minX + 1, y: y))
+            path.line(to: CGPoint(x: rect.maxX - 1, y: y))
+            y += step
+        }
+        path.lineWidth = 0.8
+        NSColor.white.withAlphaComponent(0.08).setStroke()
+        path.stroke()
+    }
+
+    private static func cornerAccentPath(in rect: CGRect, length: CGFloat) -> NSBezierPath {
+        let path = NSBezierPath()
+
+        path.move(to: CGPoint(x: rect.minX, y: rect.maxY - length))
+        path.line(to: CGPoint(x: rect.minX, y: rect.maxY))
+        path.line(to: CGPoint(x: rect.minX + length, y: rect.maxY))
+
+        path.move(to: CGPoint(x: rect.maxX - length, y: rect.maxY))
+        path.line(to: CGPoint(x: rect.maxX, y: rect.maxY))
+        path.line(to: CGPoint(x: rect.maxX, y: rect.maxY - length))
+
+        path.move(to: CGPoint(x: rect.maxX, y: rect.minY + length))
+        path.line(to: CGPoint(x: rect.maxX, y: rect.minY))
+        path.line(to: CGPoint(x: rect.maxX - length, y: rect.minY))
+
+        path.move(to: CGPoint(x: rect.minX + length, y: rect.minY))
+        path.line(to: CGPoint(x: rect.minX, y: rect.minY))
+        path.line(to: CGPoint(x: rect.minX, y: rect.minY + length))
+
+        return path
     }
 }

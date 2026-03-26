@@ -9,10 +9,14 @@ final class ThumbnailOverlayController: NSObject {
     private let stackView: ThumbnailStackView
     private let window: NSPanel
 
-    init(store: ScreenshotStore, presenter: ThumbnailStackPresenter = ThumbnailStackPresenter()) {
+    init(
+        store: ScreenshotStore,
+        presenter: ThumbnailStackPresenter = ThumbnailStackPresenter(),
+        feedbackPlayer: CaptureFeedbackPlaying = NullCaptureFeedbackPlayer()
+    ) {
         self.store = store
         self.presenter = presenter
-        self.stackView = ThumbnailStackView(presenter: presenter)
+        self.stackView = ThumbnailStackView(presenter: presenter, feedbackPlayer: feedbackPlayer)
         self.window = NSPanel(
             contentRect: NSRect(x: 0, y: 0, width: 300, height: 240),
             styleMask: [.borderless],

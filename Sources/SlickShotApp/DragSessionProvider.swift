@@ -5,14 +5,19 @@ import SlickShotCore
 @MainActor
 final class DragSessionProvider: NSObject, NSDraggingSource {
     private let storeResolver: () -> ScreenshotStore?
+    private let feedbackPlayer: CaptureFeedbackPlaying
     private var activeRecordID: UUID?
 
     var hasActiveDrag: Bool {
         activeRecordID != nil
     }
 
-    init(storeResolver: @escaping () -> ScreenshotStore? = { ScreenshotStore.current }) {
+    init(
+        storeResolver: @escaping () -> ScreenshotStore? = { ScreenshotStore.current },
+        feedbackPlayer: CaptureFeedbackPlaying = NullCaptureFeedbackPlayer()
+    ) {
         self.storeResolver = storeResolver
+        self.feedbackPlayer = feedbackPlayer
     }
 
     func beginDrag(
@@ -76,6 +81,7 @@ final class DragSessionProvider: NSObject, NSDraggingSource {
             store.cancelDrag(id: activeRecordID)
         } else {
             store.markDropped(id: activeRecordID)
+            feedbackPlayer.playDropCompleted()
         }
     }
 

@@ -18,6 +18,7 @@ let package = Package(
             name: "SlickShotApp",
             dependencies: ["SlickShotCore"],
             linkerSettings: [
+                .linkedFramework("AVFoundation"),
                 .linkedFramework("Carbon")
             ]
         ),

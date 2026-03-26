@@ -17,12 +17,14 @@ import Testing
         )),
         suspendCapture: true
     )
+    let feedbackPlayer = TestCaptureFeedbackPlayer()
     let settingsWindowController = TestSettingsWindowController()
     let coordinator = CaptureCoordinator(
         store: store,
         captureService: captureService,
         overlayFactory: overlayFactory,
-        settingsWindowController: settingsWindowController
+        settingsWindowController: settingsWindowController,
+        feedbackPlayer: feedbackPlayer
     )
 
     coordinator.startCapture()
@@ -45,6 +47,7 @@ import Testing
     #expect(record.sourceDisplay == "Display 1")
     #expect(record.selectionRect == CGRect(x: 10, y: 20, width: 30, height: 40))
     #expect(settingsWindowController.showMissingPermissionMessageCallCount == 0)
+    #expect(feedbackPlayer.captureCompletedCallCount == 1)
 }
 
 @MainActor
@@ -72,6 +75,33 @@ import Testing
     #expect(store.activeRecords.isEmpty)
     #expect(captureService.capturedRects.isEmpty)
     #expect(overlayFactory.session?.endCallCount == 1)
+}
+
+@MainActor
+@Test func test_captureFailure_doesNotPlayCompletionFeedback() async {
+    let store = ScreenshotStore(now: { Date(timeIntervalSince1970: 1_000) })
+    let overlayFactory = TestCaptureOverlaySessionFactory()
+    let captureService = TestScreenCaptureService(
+        hasPermission: true,
+        result: .failure(TestScreenCaptureError.captureFailed)
+    )
+    let feedbackPlayer = TestCaptureFeedbackPlayer()
+    let settingsWindowController = TestSettingsWindowController()
+    let coordinator = CaptureCoordinator(
+        store: store,
+        captureService: captureService,
+        overlayFactory: overlayFactory,
+        settingsWindowController: settingsWindowController,
+        feedbackPlayer: feedbackPlayer,
+        onCaptureFailure: { _ in }
+    )
+
+    coordinator.startCapture()
+    overlayFactory.session?.simulateSelection(CGRect(x: 10, y: 20, width: 30, height: 40))
+    _ = await waitUntil { captureService.capturedRects.count == 1 }
+
+    #expect(store.activeRecords.isEmpty)
+    #expect(feedbackPlayer.captureCompletedCallCount == 0)
 }
 
 @MainActor

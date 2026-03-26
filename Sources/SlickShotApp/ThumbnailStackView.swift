@@ -8,11 +8,16 @@ final class ThumbnailStackView: NSView {
     private let backgroundSize = CGSize(width: 206, height: 136)
     private let presenter: ThumbnailStackPresenter
     private let trashButton = HoverTrashButton(frame: .zero)
+    private let feedbackPlayer: CaptureFeedbackPlaying
     private var currentPresentation = ThumbnailStackPresenter.Presentation(items: [])
     private var itemViews: [UUID: ThumbnailItemView] = [:]
 
-    init(presenter: ThumbnailStackPresenter = ThumbnailStackPresenter()) {
+    init(
+        presenter: ThumbnailStackPresenter = ThumbnailStackPresenter(),
+        feedbackPlayer: CaptureFeedbackPlaying = NullCaptureFeedbackPlayer()
+    ) {
         self.presenter = presenter
+        self.feedbackPlayer = feedbackPlayer
         super.init(frame: .zero)
         wantsLayer = true
         layer?.backgroundColor = NSColor.clear.cgColor
@@ -58,8 +63,13 @@ final class ThumbnailStackView: NSView {
         for removedID in oldIDs.subtracting(newIDs) {
             guard let view = itemViews.removeValue(forKey: removedID) else { continue }
             NSAnimationContext.runAnimationGroup { context in
-                context.duration = 0.16
+                context.duration = 0.5
+                context.timingFunction = CAMediaTimingFunction(name: .easeIn)
                 view.animator().alphaValue = 0
+                view.animator().layer?.transform = CATransform3DConcat(
+                    CATransform3DMakeScale(0.76, 0.76, 1),
+                    CATransform3DMakeTranslation(0, -18, 0)
+                )
             } completionHandler: {
                 view.removeFromSuperview()
             }
@@ -67,16 +77,20 @@ final class ThumbnailStackView: NSView {
 
         for item in currentPresentation.items {
             let view = itemViews[item.id] ?? {
-                let newView = ThumbnailItemView()
+                let newView = ThumbnailItemView(feedbackPlayer: feedbackPlayer)
                 newView.alphaValue = 0
-                newView.layer?.transform = CATransform3DMakeScale(0.96, 0.96, 1)
+                newView.layer?.transform = CATransform3DConcat(
+                    CATransform3DMakeScale(0.94, 0.94, 1),
+                    CATransform3DMakeTranslation(0, 14, 0)
+                )
                 addSubview(newView)
                 itemViews[item.id] = newView
                 return newView
             }()
             view.configure(with: item.record)
             NSAnimationContext.runAnimationGroup { context in
-                context.duration = 0.18
+                context.duration = 0.28
+                context.timingFunction = CAMediaTimingFunction(name: .easeOut)
                 view.animator().alphaValue = 1
                 view.animator().layer?.transform = CATransform3DIdentity
             }
@@ -111,7 +125,7 @@ final class ThumbnailStackView: NSView {
             view.layer?.zPosition = CGFloat(item.zIndex)
             if view.frame != frame {
                 NSAnimationContext.runAnimationGroup { context in
-                    context.duration = 0.18
+                    context.duration = 0.22
                     context.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
                     view.animator().frame = frame
                 }
@@ -133,8 +147,10 @@ private final class HoverTrashButton: NSButton {
         super.init(frame: frameRect)
         wantsLayer = true
         layer?.cornerRadius = 13
-        layer?.backgroundColor = NSColor.white.withAlphaComponent(0.08).cgColor
-        contentTintColor = NSColor.white.withAlphaComponent(0.75)
+        layer?.borderWidth = 1
+        layer?.borderColor = NSColor(calibratedRed: 0.56, green: 0.94, blue: 1, alpha: 0.22).cgColor
+        layer?.backgroundColor = NSColor(calibratedRed: 0.05, green: 0.11, blue: 0.14, alpha: 0.34).cgColor
+        contentTintColor = NSColor.white.withAlphaComponent(0.82)
         imagePosition = .imageOnly
     }
 
@@ -167,7 +183,12 @@ private final class HoverTrashButton: NSButton {
     }
 
     private func setHover(_ isHovering: Bool) {
-        layer?.backgroundColor = NSColor.white.withAlphaComponent(isHovering ? 0.16 : 0.08).cgColor
-        contentTintColor = NSColor.white.withAlphaComponent(isHovering ? 0.95 : 0.75)
+        layer?.backgroundColor = NSColor(
+            calibratedRed: 0.08,
+            green: 0.15,
+            blue: 0.19,
+            alpha: isHovering ? 0.48 : 0.34
+        ).cgColor
+        contentTintColor = NSColor.white.withAlphaComponent(isHovering ? 0.98 : 0.82)
     }
 }

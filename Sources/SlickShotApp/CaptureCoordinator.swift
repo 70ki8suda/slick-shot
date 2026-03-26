@@ -39,6 +39,7 @@ final class CaptureCoordinator {
     private let captureService: ScreenCaptureServiceProtocol
     private let overlayFactory: CaptureOverlaySessionFactory
     private let settingsWindowController: SettingsWindowControlling
+    private let feedbackPlayer: CaptureFeedbackPlaying
     private let onCaptureFailure: (any Error) -> Void
 
     private var activeSession: CaptureOverlaySession?
@@ -48,6 +49,7 @@ final class CaptureCoordinator {
         captureService: ScreenCaptureServiceProtocol,
         overlayFactory: CaptureOverlaySessionFactory,
         settingsWindowController: SettingsWindowControlling,
+        feedbackPlayer: CaptureFeedbackPlaying = NullCaptureFeedbackPlayer(),
         onCaptureFailure: @escaping (any Error) -> Void = { error in
             NSLog("SlickShot capture failed: %@", String(describing: error))
         }
@@ -56,6 +58,7 @@ final class CaptureCoordinator {
         self.captureService = captureService
         self.overlayFactory = overlayFactory
         self.settingsWindowController = settingsWindowController
+        self.feedbackPlayer = feedbackPlayer
         self.onCaptureFailure = onCaptureFailure
     }
 
@@ -110,6 +113,7 @@ final class CaptureCoordinator {
                 sourceDisplay: payload.sourceDisplay,
                 selectionRect: selectionRect
             )
+            feedbackPlayer.playCaptureCompleted()
         } catch {
             onCaptureFailure(error)
         }

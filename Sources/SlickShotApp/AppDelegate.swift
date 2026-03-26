@@ -11,6 +11,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var settingsWindowController: SettingsWindowController?
     private var hotkeyMonitor: HotkeyMonitor?
     private var store: ScreenshotStore?
+    private var feedbackPlayer: CaptureFeedbackPlaying?
     private var hotkeyConfiguration = HotkeyConfiguration()
 
     func applicationDidFinishLaunching(_ notification: Notification) {
@@ -18,7 +19,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         self.store = store
         hotkeyConfiguration = HotkeyConfiguration()
         let captureService = ScreenCaptureService()
-        overlayController = ThumbnailOverlayController(store: store)
+        let feedbackPlayer = CaptureFeedbackPlayer()
+        self.feedbackPlayer = feedbackPlayer
+        overlayController = ThumbnailOverlayController(store: store, feedbackPlayer: feedbackPlayer)
         let settingsWindowController = SettingsWindowController(
             shortcutDisplayProvider: { [weak self] in
                 self?.hotkeyConfiguration.displayString ?? HotkeyConfiguration.default.displayString
@@ -35,7 +38,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             store: store,
             captureService: captureService,
             overlayFactory: LiveCaptureOverlaySessionFactory(),
-            settingsWindowController: settingsWindowController
+            settingsWindowController: settingsWindowController,
+            feedbackPlayer: feedbackPlayer
         )
         statusItemController = StatusItemController(
             hotkeyDisplayStringProvider: { [weak self] in
