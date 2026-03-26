@@ -82,6 +82,7 @@ This works, but it creates repeated friction:
 ### Secondary Flows
 
 - If the user takes another screenshot before using the first one, the new capture becomes the frontmost thumbnail while older captures remain partially visible behind it.
+- If more than three screenshots are pending, only the newest three participate in the visible stack. Older pending screenshots remain active in the store but are not surfaced by additional browsing UI in v1; they continue to age out normally and can still be removed by expiry or app restart.
 - If the user decides not to use a screenshot, they can click the trash affordance to remove it immediately.
 - If the user ignores the screenshot, SlickShot removes it automatically after 5 minutes.
 
@@ -206,6 +207,7 @@ v1 should prefer in-memory ownership of screenshots. However, some drag targets 
 
 - Any temporary drag backing file must be removed after successful drop.
 - Cleanup should also run on timer expiry, manual delete, and app restart recovery.
+- On app restart, any in-flight screenshots from the previous process are intentionally discarded rather than restored. SlickShot is a transient transfer buffer, not a persistence surface.
 
 ### Timer Accuracy and Consistency
 
