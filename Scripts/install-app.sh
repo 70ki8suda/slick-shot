@@ -12,8 +12,84 @@ RESOURCES_DIR="$CONTENTS_DIR/Resources"
 EXECUTABLE_PATH="$PRODUCT_DIR/SlickShotApp"
 ICONSET_DIR="$ROOT_DIR/Resources/AppIcon.iconset"
 ICON_FILE="$RESOURCES_DIR/AppIcon.icns"
+KEYCHAIN_PATH="$HOME/Library/Keychains/slickshot-signing.keychain-db"
+KEYCHAIN_PASSWORD="${SLICKSHOT_KEYCHAIN_PASSWORD:-slickshot-local-signing}"
+IDENTITY_NAME="${CODESIGN_IDENTITY:-SlickShot Local Signing}"
+P12_PASSWORD="slickshot-export"
 
 mkdir -p "$HOME/Applications"
+
+current_keychains="$(security list-keychains -d user | tr -d '"')"
+security list-keychains -d user -s "$KEYCHAIN_PATH" $current_keychains >/dev/null
+
+ensure_signing_identity() {
+  if security find-identity -v -p codesigning "$KEYCHAIN_PATH" 2>/dev/null | grep -Fq "$IDENTITY_NAME"; then
+    return
+  fi
+
+  local temp_dir private_key certificate pem_bundle
+  temp_dir="$(mktemp -d)"
+  private_key="$temp_dir/slickshot.key"
+  certificate="$temp_dir/slickshot.crt"
+  pem_bundle="$temp_dir/slickshot.p12"
+
+  if [[ ! -f "$KEYCHAIN_PATH" ]]; then
+    security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+    security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
+  fi
+
+  security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+
+  openssl req \
+    -x509 \
+    -newkey rsa:2048 \
+    -keyout "$private_key" \
+    -out "$certificate" \
+    -days 3650 \
+    -nodes \
+    -subj "/CN=$IDENTITY_NAME/" \
+    -addext "basicConstraints=critical,CA:FALSE" \
+    -addext "keyUsage=critical,digitalSignature" \
+    -addext "extendedKeyUsage=critical,codeSigning" \
+    >/dev/null 2>&1
+
+  openssl pkcs12 \
+    -export \
+    -legacy \
+    -inkey "$private_key" \
+    -in "$certificate" \
+    -out "$pem_bundle" \
+    -passout "pass:$P12_PASSWORD" \
+    >/dev/null 2>&1
+
+  security import "$pem_bundle" \
+    -k "$KEYCHAIN_PATH" \
+    -P "$P12_PASSWORD" \
+    -T /usr/bin/codesign \
+    -T /usr/bin/security \
+    >/dev/null
+
+  security add-trusted-cert -d -r trustRoot -k "$KEYCHAIN_PATH" "$certificate" >/dev/null
+
+  security set-key-partition-list \
+    -S apple-tool:,apple:,codesign: \
+    -s \
+    -k "$KEYCHAIN_PASSWORD" \
+    "$KEYCHAIN_PATH" \
+    >/dev/null
+
+  rm -rf "$temp_dir"
+}
+
+ensure_signing_identity
+IDENTITY_HASH="$(
+  security find-identity -v -p codesigning "$KEYCHAIN_PATH" |
+    awk -v name="$IDENTITY_NAME" '$0 ~ name { print $2; exit }'
+)"
+if [[ -z "$IDENTITY_HASH" ]]; then
+  echo "Unable to resolve codesigning identity hash for $IDENTITY_NAME" >&2
+  exit 1
+fi
 
 swift build \
   --package-path "$ROOT_DIR" \
@@ -61,7 +137,8 @@ cat > "$CONTENTS_DIR/Info.plist" <<'PLIST'
 </plist>
 PLIST
 
-/usr/bin/codesign --force --deep --sign - "$APP_DIR"
+security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+/usr/bin/codesign --force --deep --keychain "$KEYCHAIN_PATH" --sign "$IDENTITY_HASH" "$APP_DIR"
 
 touch "$APP_DIR"
 echo "Installed $APP_DIR"

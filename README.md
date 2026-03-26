@@ -22,6 +22,7 @@ Install a Raycast-launchable app bundle into `~/Applications`:
 ```
 
 This creates `~/Applications/SlickShot.app`.
+The installer also creates a local signing identity in `~/Library/Keychains/slickshot-signing.keychain-db` so Screen Recording permission survives app reinstalls during development.
 
 After that you can:
 
@@ -62,7 +63,7 @@ SlickShot stores the configured shortcut in `UserDefaults` and falls back to the
 
 ## Current Limitations
 
-- The app is currently unsigned with ad-hoc signing for local development and testing.
+- The app is signed with a local self-managed development identity, not a notarized release certificate.
 - Screen Recording permission still needs to be granted manually in macOS.
 - Drag-and-drop behavior has automated coverage for temp-file lifecycle, but target-app acceptance is still best verified manually in apps like Slack.
 - The current bundle installer is local-only and does not produce a notarized release artifact.

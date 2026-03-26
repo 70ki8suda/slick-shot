@@ -17,6 +17,10 @@ struct AppBundleMetadataTests {
         let script = try String(contentsOf: scriptURL, encoding: .utf8)
 
         #expect(script.contains("iconutil -c icns"))
-        #expect(script.contains("codesign --force --deep --sign - \"$APP_DIR\""))
+        #expect(script.contains("SlickShot Local Signing"))
+        #expect(script.contains("security create-keychain"))
+        #expect(script.contains("security list-keychains -d user -s"))
+        #expect(script.contains("security add-trusted-cert -d -r trustRoot -k \"$KEYCHAIN_PATH\" \"$certificate\""))
+        #expect(script.contains("codesign --force --deep --keychain \"$KEYCHAIN_PATH\" --sign \"$IDENTITY_HASH\" \"$APP_DIR\""))
     }
 }
