@@ -5,6 +5,44 @@ import Testing
 @testable import SlickShotApp
 
 @MainActor
+@Test func test_capturePayloadWithFallback_usesLegacyCaptureWhenModernCaptureFailsAndPermissionIsGranted() async throws {
+    let fallbackImage = try #require(makeCGImage(size: CGSize(width: 40, height: 20)))
+    let service = ScreenCaptureService(
+        permissionChecker: { true },
+        legacyRegionCapturer: TestLegacyRegionCapturer(image: fallbackImage)
+    )
+
+    let payload = try await service.capturePayloadWithFallback(
+        selectionRect: CGRect(x: 100, y: 200, width: 40, height: 20),
+        sourceDisplay: "Display 2",
+        modernCapture: {
+            throw TestScreenCaptureFailure.modernBackendFailed
+        }
+    )
+
+    #expect(payload.sourceDisplay == "Display 2")
+    #expect(payload.imageData.isEmpty == false)
+}
+
+@MainActor
+@Test func test_capturePayloadWithFallback_rethrowsOriginalErrorWhenPermissionMissing() async {
+    let service = ScreenCaptureService(
+        permissionChecker: { false },
+        legacyRegionCapturer: TestLegacyRegionCapturer(image: nil)
+    )
+
+    await #expect(throws: TestScreenCaptureFailure.self) {
+        try await service.capturePayloadWithFallback(
+            selectionRect: CGRect(x: 100, y: 200, width: 40, height: 20),
+            sourceDisplay: "Display 1",
+            modernCapture: {
+                throw TestScreenCaptureFailure.modernBackendFailed
+            }
+        )
+    }
+}
+
+@MainActor
 @Test func test_captureRequests_mapsRectIntoSelectedDisplayLocalCoordinates() throws {
     let screens = [
         TestScreen(frame: CGRect(x: 0, y: 0, width: 1512, height: 982)),
@@ -69,4 +107,36 @@ import Testing
 
 private struct TestScreen: ScreenCaptureScreen {
     let frame: CGRect
+}
+
+private enum TestScreenCaptureFailure: Error {
+    case modernBackendFailed
+}
+
+private struct TestLegacyRegionCapturer: LegacyRegionCapturing {
+    let image: CGImage?
+
+    func captureImage(in rect: CGRect) -> CGImage? {
+        image
+    }
+}
+
+private func makeCGImage(size: CGSize) -> CGImage? {
+    guard
+        let context = CGContext(
+            data: nil,
+            width: max(Int(size.width), 1),
+            height: max(Int(size.height), 1),
+            bitsPerComponent: 8,
+            bytesPerRow: 0,
+            space: CGColorSpaceCreateDeviceRGB(),
+            bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
+        )
+    else {
+        return nil
+    }
+
+    context.setFillColor(NSColor.systemTeal.cgColor)
+    context.fill(CGRect(origin: .zero, size: size))
+    return context.makeImage()
 }

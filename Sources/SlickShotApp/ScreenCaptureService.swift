@@ -11,8 +11,23 @@ protocol ScreenCaptureScreen {
     var frame: CGRect { get }
 }
 
+protocol LegacyRegionCapturing {
+    func captureImage(in rect: CGRect) -> CGImage?
+}
+
 extension NSScreen: ScreenCaptureScreen {}
 extension SCDisplay: ScreenCaptureScreen {}
+
+struct QuartzLegacyRegionCapturer: LegacyRegionCapturing {
+    func captureImage(in rect: CGRect) -> CGImage? {
+        CGWindowListCreateImage(
+            rect,
+            .optionOnScreenOnly,
+            kCGNullWindowID,
+            [.bestResolution, .boundsIgnoreFraming]
+        )
+    }
+}
 
 struct DisplayCaptureRequest: Equatable {
     let displayIndex: Int
@@ -22,16 +37,34 @@ struct DisplayCaptureRequest: Equatable {
 
 @MainActor
 final class ScreenCaptureService: ScreenCaptureServiceProtocol {
+    private let permissionChecker: @MainActor () -> Bool
+    private let permissionRequester: @MainActor () -> Bool
+    private let legacyRegionCapturer: any LegacyRegionCapturing
+
+    init(
+        permissionChecker: @escaping @MainActor () -> Bool = {
+            CGPreflightScreenCaptureAccess()
+        },
+        permissionRequester: @escaping @MainActor () -> Bool = {
+            CGRequestScreenCaptureAccess()
+        },
+        legacyRegionCapturer: any LegacyRegionCapturing = QuartzLegacyRegionCapturer()
+    ) {
+        self.permissionChecker = permissionChecker
+        self.permissionRequester = permissionRequester
+        self.legacyRegionCapturer = legacyRegionCapturer
+    }
+
     var captureFlow: ScreenCaptureFlow {
         .overlayRectSelection
     }
 
     func hasScreenRecordingPermission() -> Bool {
-        CGPreflightScreenCaptureAccess()
+        permissionChecker()
     }
 
     func requestScreenRecordingPermission() -> Bool {
-        CGRequestScreenCaptureAccess()
+        permissionRequester()
     }
 
     func captureInteractiveImage() async throws -> ScreenCapturePayload? {
@@ -40,28 +73,32 @@ final class ScreenCaptureService: ScreenCaptureServiceProtocol {
 
     func captureImage(in rect: CGRect) async throws -> ScreenCapturePayload {
         let selectionRect = rect.standardized.integral
+        NSLog("SlickShot service captureImage rect=%@", NSStringFromRect(selectionRect))
         let shareableContent = try await SCShareableContent.excludingDesktopWindows(
             false,
             onScreenWindowsOnly: true
         )
         let requests = Self.captureRequests(for: selectionRect, screens: shareableContent.displays)
+        NSLog(
+            "SlickShot service displays=%ld requests=%@",
+            shareableContent.displays.count,
+            String(describing: requests)
+        )
         guard !requests.isEmpty else {
             throw ScreenCaptureServiceError.failedToCreateImage
         }
 
-        let image = try await compositeImage(
-            from: requests,
-            displays: shareableContent.displays,
-            in: selectionRect
-        )
-        guard let pngData = Self.pngData(from: image) else {
-            throw ScreenCaptureServiceError.failedToEncodeImage
-        }
-
         let sourceDisplay = requests.count == 1 ? "Display \(requests[0].displayIndex)" : "Multiple Displays"
-        return ScreenCapturePayload(
-            imageData: pngData,
-            sourceDisplay: sourceDisplay
+        return try await capturePayloadWithFallback(
+            selectionRect: selectionRect,
+            sourceDisplay: sourceDisplay,
+            modernCapture: {
+                try await self.compositeImage(
+                    from: requests,
+                    displays: shareableContent.displays,
+                    in: selectionRect
+                )
+            }
         )
     }
 
@@ -177,6 +214,50 @@ final class ScreenCaptureService: ScreenCaptureServiceProtocol {
         }
 
         return segments
+    }
+
+    func capturePayloadWithFallback(
+        selectionRect: CGRect,
+        sourceDisplay: String,
+        modernCapture: () async throws -> CGImage
+    ) async throws -> ScreenCapturePayload {
+        do {
+            let image = try await modernCapture()
+            guard let pngData = Self.pngData(from: image) else {
+                throw ScreenCaptureServiceError.failedToEncodeImage
+            }
+            NSLog(
+                "SlickShot service composite success sourceDisplay=%@ size=%ld",
+                sourceDisplay,
+                pngData.count
+            )
+            return ScreenCapturePayload(
+                imageData: pngData,
+                sourceDisplay: sourceDisplay
+            )
+        } catch {
+            let nsError = error as NSError
+            NSLog(
+                "SlickShot modern capture failed domain=%@ code=%ld description=%@",
+                nsError.domain,
+                nsError.code,
+                nsError.localizedDescription
+            )
+            guard hasScreenRecordingPermission() else {
+                throw error
+            }
+            guard let fallbackImage = legacyRegionCapturer.captureImage(in: selectionRect) else {
+                throw error
+            }
+            NSLog("SlickShot legacy capture fallback succeeded rect=%@", NSStringFromRect(selectionRect))
+            guard let pngData = Self.pngData(from: fallbackImage) else {
+                throw ScreenCaptureServiceError.failedToEncodeImage
+            }
+            return ScreenCapturePayload(
+                imageData: pngData,
+                sourceDisplay: sourceDisplay
+            )
+        }
     }
 
     private static func pngData(from cgImage: CGImage) -> Data? {

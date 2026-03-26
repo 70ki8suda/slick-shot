@@ -119,7 +119,20 @@ final class CaptureCoordinator {
             feedbackPlayer.playCaptureCompleted()
         } catch {
             if Self.isScreenRecordingPermissionError(error) {
+                let nsError = error as NSError
+                NSLog(
+                    "SlickShot interactive capture permission error domain=%@ code=%ld description=%@",
+                    nsError.domain,
+                    nsError.code,
+                    nsError.localizedDescription
+                )
+                if captureService.hasScreenRecordingPermission() {
+                    NSLog("SlickShot interactive screen recording already granted; reporting capture failure without re-request")
+                    onCaptureFailure(error)
+                    return
+                }
                 let granted = captureService.requestScreenRecordingPermission()
+                NSLog("SlickShot interactive permission request result=%d", granted)
                 if granted == false {
                     settingsWindowController.showMissingPermissionMessage()
                 }
@@ -136,6 +149,7 @@ final class CaptureCoordinator {
             return
         }
 
+        NSLog("SlickShot capture selection rect=%@", NSStringFromRect(selectionRect))
         endActiveSession()
 
         Task { [weak self] in
@@ -146,16 +160,36 @@ final class CaptureCoordinator {
     private func captureSelection(_ selectionRect: CGRect) async {
         do {
             await beforeCapture()
+            NSLog("SlickShot capture begin rect=%@", NSStringFromRect(selectionRect))
             let payload = try await captureService.captureImage(in: selectionRect)
             _ = store.insert(
                 image: payload.imageData,
                 sourceDisplay: payload.sourceDisplay,
                 selectionRect: selectionRect
             )
+            NSLog(
+                "SlickShot capture success rect=%@ bytes=%ld display=%@",
+                NSStringFromRect(selectionRect),
+                payload.imageData.count,
+                payload.sourceDisplay
+            )
             feedbackPlayer.playCaptureCompleted()
         } catch {
             if Self.isScreenRecordingPermissionError(error) {
+                let nsError = error as NSError
+                NSLog(
+                    "SlickShot capture permission error domain=%@ code=%ld description=%@",
+                    nsError.domain,
+                    nsError.code,
+                    nsError.localizedDescription
+                )
+                if captureService.hasScreenRecordingPermission() {
+                    NSLog("SlickShot screen recording already granted; reporting capture failure without re-request")
+                    onCaptureFailure(error)
+                    return
+                }
                 let granted = captureService.requestScreenRecordingPermission()
+                NSLog("SlickShot permission request result=%d", granted)
                 if granted == false {
                     settingsWindowController.showMissingPermissionMessage()
                 }

@@ -291,6 +291,38 @@ import Testing
 }
 
 @MainActor
+@Test func test_permissionDeniedCapture_whenPermissionAlreadyGranted_reportsFailureWithoutPromptLoop() async {
+    let store = ScreenshotStore(now: { Date(timeIntervalSince1970: 1_000) })
+    let overlayFactory = TestCaptureOverlaySessionFactory()
+    let captureService = TestScreenCaptureService(
+        hasPermission: true,
+        requestPermissionResult: false,
+        result: .failure(TestScreenCaptureError.permissionDenied)
+    )
+    let settingsWindowController = TestSettingsWindowController()
+    var reportedFailures: [String] = []
+    let coordinator = CaptureCoordinator(
+        store: store,
+        captureService: captureService,
+        overlayFactory: overlayFactory,
+        settingsWindowController: settingsWindowController,
+        onCaptureFailure: { error in
+            reportedFailures.append(String(describing: error))
+        }
+    )
+
+    coordinator.startCapture()
+    overlayFactory.session?.simulateSelection(CGRect(x: 10, y: 20, width: 30, height: 40))
+
+    #expect(await waitUntil { captureService.capturedRects.count == 1 })
+    #expect(captureService.requestPermissionCallCount == 0)
+    #expect(settingsWindowController.showMissingPermissionMessageCallCount == 0)
+    #expect(reportedFailures.count == 1)
+    #expect(reportedFailures[0].contains("SCStreamErrorDomain"))
+    #expect(reportedFailures[0].contains("-3801"))
+}
+
+@MainActor
 @Test func test_captureFailureAfterPermissionGranted_reportsFailureWithoutShowingPermissionsWindow() async throws {
     let store = ScreenshotStore(now: { Date(timeIntervalSince1970: 1_000) })
     let overlayFactory = TestCaptureOverlaySessionFactory()
