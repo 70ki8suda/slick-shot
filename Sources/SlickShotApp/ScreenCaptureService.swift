@@ -7,6 +7,17 @@ enum ScreenCaptureServiceError: Error {
     case failedToRunNativeCapture
 }
 
+protocol ScreenCaptureScreen {
+    var frame: CGRect { get }
+}
+
+extension NSScreen: ScreenCaptureScreen {}
+
+struct NativeCaptureRequest: Equatable {
+    let displayIndex: Int
+    let rect: CGRect
+}
+
 @MainActor
 final class ScreenCaptureService: ScreenCaptureServiceProtocol {
     var captureFlow: ScreenCaptureFlow {
@@ -14,11 +25,11 @@ final class ScreenCaptureService: ScreenCaptureServiceProtocol {
     }
 
     func hasScreenRecordingPermission() -> Bool {
-        true
+        CGPreflightScreenCaptureAccess()
     }
 
     func requestScreenRecordingPermission() -> Bool {
-        true
+        CGRequestScreenCaptureAccess()
     }
 
     func captureInteractiveImage() async throws -> ScreenCapturePayload? {
@@ -27,6 +38,9 @@ final class ScreenCaptureService: ScreenCaptureServiceProtocol {
 
     func captureImage(in rect: CGRect) async throws -> ScreenCapturePayload {
         let selectionRect = rect.standardized.integral
+        guard let request = Self.captureRequest(for: selectionRect, screens: NSScreen.screens) else {
+            throw ScreenCaptureServiceError.failedToRunNativeCapture
+        }
         let outputURL = FileManager.default.temporaryDirectory
             .appendingPathComponent(UUID().uuidString)
             .appendingPathExtension("png")
@@ -35,7 +49,7 @@ final class ScreenCaptureService: ScreenCaptureServiceProtocol {
             try? FileManager.default.removeItem(at: outputURL)
         }
 
-        let result = try await Self.runNativeCapture(rect: selectionRect, outputURL: outputURL)
+        let result = try await Self.runNativeCapture(request: request, outputURL: outputURL)
         guard result.terminationStatus == 0 else {
             throw ScreenCaptureServiceError.failedToRunNativeCapture
         }
@@ -46,20 +60,32 @@ final class ScreenCaptureService: ScreenCaptureServiceProtocol {
 
         return ScreenCapturePayload(
             imageData: pngData,
-            sourceDisplay: Self.sourceDisplayName(for: selectionRect)
+            sourceDisplay: "Display \(request.displayIndex)"
         )
     }
 
-    private static func sourceDisplayName(for rect: CGRect) -> String {
+    static func captureRequest(
+        for rect: CGRect,
+        screens: [any ScreenCaptureScreen]
+    ) -> NativeCaptureRequest? {
         let midpoint = CGPoint(x: rect.midX, y: rect.midY)
-        if let index = NSScreen.screens.firstIndex(where: { $0.frame.contains(midpoint) }) {
-            return "Display \(index + 1)"
+        guard let index = screens.firstIndex(where: { $0.frame.contains(midpoint) }) else {
+            return nil
         }
 
-        return "Display"
+        let screen = screens[index]
+        return NativeCaptureRequest(
+            displayIndex: index + 1,
+            rect: CGRect(
+                x: rect.minX - screen.frame.minX,
+                y: rect.minY - screen.frame.minY,
+                width: rect.width,
+                height: rect.height
+            ).integral
+        )
     }
 
-    private static func runNativeCapture(rect: CGRect, outputURL: URL) async throws -> NativeCaptureResult {
+    private static func runNativeCapture(request: NativeCaptureRequest, outputURL: URL) async throws -> NativeCaptureResult {
         try await withCheckedThrowingContinuation { continuation in
             let process = Process()
             let stderrPipe = Pipe()
@@ -67,8 +93,9 @@ final class ScreenCaptureService: ScreenCaptureServiceProtocol {
             process.executableURL = URL(fileURLWithPath: "/usr/sbin/screencapture")
             process.arguments = [
                 "-x",
+                "-D", "\(request.displayIndex)",
                 "-t", "png",
-                "-R", "\(Int(rect.minX)),\(Int(rect.minY)),\(Int(rect.width)),\(Int(rect.height))",
+                "-R", "\(Int(request.rect.minX)),\(Int(request.rect.minY)),\(Int(request.rect.width)),\(Int(request.rect.height))",
                 outputURL.path
             ]
             process.standardError = stderrPipe
