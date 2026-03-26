@@ -91,6 +91,8 @@ final class ThumbnailStackView: NSView {
     private func setupCloseButton() {
         closeButton.translatesAutoresizingMaskIntoConstraints = false
         closeButton.isBordered = false
+        closeButton.wantsLayer = true
+        closeButton.layer?.zPosition = 10_000
         closeButton.image = NSImage(
             systemSymbolName: "xmark.circle.fill",
             accessibilityDescription: "Delete screenshot"
@@ -98,7 +100,7 @@ final class ThumbnailStackView: NSView {
         closeButton.alphaValue = 0
         closeButton.target = self
         closeButton.action = #selector(deleteCurrentRecord)
-        addSubview(closeButton)
+        addSubview(closeButton, positioned: .above, relativeTo: nil)
     }
 
     private func configureBackdropGlow() {
@@ -156,6 +158,8 @@ final class ThumbnailStackView: NSView {
                 view.playArrivalEffect()
             }
         }
+
+        addSubview(closeButton, positioned: .above, relativeTo: nil)
     }
 
     private func layoutCloseButton() {
