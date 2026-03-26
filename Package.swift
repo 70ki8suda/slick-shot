@@ -19,6 +19,10 @@ let package = Package(
             dependencies: ["SlickShotCore"]
         ),
         .testTarget(
+            name: "SlickShotAppTests",
+            dependencies: ["SlickShotApp", "SlickShotCore"]
+        ),
+        .testTarget(
             name: "SlickShotCoreTests",
             dependencies: ["SlickShotCore"]
         )
