@@ -22,6 +22,23 @@ private extension Data {
     #expect(store.activeRecords.isEmpty)
 }
 
+@Test func test_markDropped_hiddenRecordExpiresAfterDropCleanupInterval() throws {
+    var currentDate = Date(timeIntervalSince1970: 1_000)
+    let store = ScreenshotStore(now: { currentDate })
+    let id = store.insert(image: .stub(), sourceDisplay: "main", selectionRect: .zero)
+
+    store.markDropped(id: id)
+    currentDate = currentDate.addingTimeInterval(ScreenshotStore.droppedCleanupInterval - 1)
+    store.expire()
+
+    #expect(store.record(id: id)?.status == .dropped)
+
+    currentDate = currentDate.addingTimeInterval(1)
+    store.expire()
+
+    #expect(store.record(id: id) == nil)
+}
+
 @Test func test_expireRemovesRecordsOlderThanFiveMinutes() {
     var currentDate = Date(timeIntervalSince1970: 1_000)
     let store = ScreenshotStore(now: { currentDate })

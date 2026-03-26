@@ -4,6 +4,7 @@ import CoreGraphics
 public final class ScreenshotStore {
     public static let didChangeNotification = Notification.Name("SlickShotCore.ScreenshotStoreDidChange")
     public static let retentionInterval: TimeInterval = 300
+    public static let droppedCleanupInterval: TimeInterval = 30
     nonisolated(unsafe) public private(set) static var current: ScreenshotStore?
 
     private let now: () -> Date
@@ -107,13 +108,14 @@ public final class ScreenshotStore {
         }
 
         let remaining = pausedRetentionIntervals.removeValue(forKey: id)
-        cleanupTemporaryFile(for: entry.record)
         updateRecord(for: id) { record in
             record.status = .pending
             if let remaining {
                 record.expiresAt = now().addingTimeInterval(remaining)
             }
-            record.temporaryBackingURL = nil
+            if record.temporaryBackingURL == nil {
+                record.temporaryBackingURL = entry.record.temporaryBackingURL
+            }
         }
     }
 
@@ -122,12 +124,10 @@ public final class ScreenshotStore {
             return
         }
 
-        let remaining = pausedRetentionIntervals.removeValue(forKey: id)
-        cleanupTemporaryFile(for: entry.record)
+        _ = pausedRetentionIntervals.removeValue(forKey: id)
         updateRecord(for: id) { record in
-            record.expiresAt = remaining.map { now().addingTimeInterval($0) } ?? record.expiresAt
+            record.expiresAt = now().addingTimeInterval(Self.droppedCleanupInterval)
             record.status = .dropped
-            record.temporaryBackingURL = nil
         }
     }
 

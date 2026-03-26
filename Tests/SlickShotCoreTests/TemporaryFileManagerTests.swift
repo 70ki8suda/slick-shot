@@ -63,7 +63,7 @@ struct TemporaryFileManagerTests {
         #expect(FileManager.default.fileExists(atPath: fileURL.path))
     }
 
-    @Test func screenshotStore_cancelDrag_removesTemporaryFileAndRestoresPendingState() throws {
+    @Test func screenshotStore_cancelDrag_keepsTemporaryFileAvailableAndRestoresPendingState() throws {
         var currentDate = Date(timeIntervalSince1970: 1_000)
         let directory = try TestDirectory()
         let manager = TemporaryFileManager(rootDirectory: directory.url)
@@ -79,12 +79,12 @@ struct TemporaryFileManagerTests {
 
         let record = try #require(store.record(id: id))
         #expect(record.status == .pending)
-        #expect(record.temporaryBackingURL == nil)
+        #expect(record.temporaryBackingURL == fileURL)
         #expect(record.expiresAt == currentDate.addingTimeInterval(300))
-        #expect(FileManager.default.fileExists(atPath: fileURL.path) == false)
+        #expect(FileManager.default.fileExists(atPath: fileURL.path))
     }
 
-    @Test func screenshotStore_markDropped_removesTemporaryFile() throws {
+    @Test func screenshotStore_markDropped_keepsTemporaryFileForDropGracePeriod() throws {
         let directory = try TestDirectory()
         let manager = TemporaryFileManager(rootDirectory: directory.url)
         let store = ScreenshotStore(
@@ -98,8 +98,8 @@ struct TemporaryFileManagerTests {
 
         let record = try #require(store.record(id: id))
         #expect(record.status == .dropped)
-        #expect(record.temporaryBackingURL == nil)
-        #expect(FileManager.default.fileExists(atPath: fileURL.path) == false)
+        #expect(record.temporaryBackingURL == fileURL)
+        #expect(FileManager.default.fileExists(atPath: fileURL.path))
     }
 
     @Test func screenshotStore_delete_removesTemporaryFile() throws {
@@ -150,7 +150,7 @@ struct TemporaryFileManagerTests {
         #expect(FileManager.default.fileExists(atPath: staleURL.path) == false)
     }
 
-    @Test @MainActor func dragSessionProvider_rejectedDrag_cancelsManagedTempFileLifecycle() throws {
+    @Test @MainActor func dragSessionProvider_rejectedDrag_preservesManagedTempFileLifecycle() throws {
         let directory = try TestDirectory()
         let manager = TemporaryFileManager(rootDirectory: directory.url)
         let store = ScreenshotStore(
@@ -166,8 +166,8 @@ struct TemporaryFileManagerTests {
         #expect(provider.hasActiveDrag == false)
         let record = try #require(store.record(id: id))
         #expect(record.status == .pending)
-        #expect(record.temporaryBackingURL == nil)
-        #expect(FileManager.default.fileExists(atPath: fileURL.path) == false)
+        #expect(record.temporaryBackingURL == fileURL)
+        #expect(FileManager.default.fileExists(atPath: fileURL.path))
     }
 
     @Test @MainActor func dragSessionProvider_finishWithoutStoreClearsActiveDragState() throws {

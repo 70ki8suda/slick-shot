@@ -1,5 +1,6 @@
 import CoreGraphics
 import Foundation
+@preconcurrency import ScreenCaptureKit
 import Testing
 
 @testable import SlickShotApp
@@ -48,6 +49,108 @@ import Testing
     #expect(record.selectionRect == CGRect(x: 10, y: 20, width: 30, height: 40))
     #expect(settingsWindowController.showMissingPermissionMessageCallCount == 0)
     #expect(feedbackPlayer.captureCompletedCallCount == 1)
+}
+
+@MainActor
+@Test func test_nativeInteractiveCapture_insertsRecordWithoutOverlay() async {
+    let store = ScreenshotStore(now: { Date(timeIntervalSince1970: 1_000) })
+    let overlayFactory = TestCaptureOverlaySessionFactory()
+    let captureService = TestScreenCaptureService(
+        flow: .nativeInteractiveSelection,
+        hasPermission: true,
+        result: .success(ScreenCapturePayload(
+            imageData: Data([0xBA, 0xBE]),
+            sourceDisplay: "Display"
+        ))
+    )
+    let feedbackPlayer = TestCaptureFeedbackPlayer()
+    let settingsWindowController = TestSettingsWindowController()
+    let coordinator = CaptureCoordinator(
+        store: store,
+        captureService: captureService,
+        overlayFactory: overlayFactory,
+        settingsWindowController: settingsWindowController,
+        feedbackPlayer: feedbackPlayer,
+        beforeCapture: {}
+    )
+
+    coordinator.startCapture()
+
+    #expect(await waitUntil { captureService.interactiveCaptureCallCount == 1 })
+    #expect(overlayFactory.makeSessionCallCount == 0)
+    #expect(await waitUntil { store.activeRecords.count == 1 })
+    #expect(settingsWindowController.showMissingPermissionMessageCallCount == 0)
+    #expect(feedbackPlayer.captureCompletedCallCount == 1)
+}
+
+@MainActor
+@Test func test_nativeInteractiveCaptureCancellation_doesNotInsertRecord() async {
+    let store = ScreenshotStore(now: { Date(timeIntervalSince1970: 1_000) })
+    let overlayFactory = TestCaptureOverlaySessionFactory()
+    let captureService = TestScreenCaptureService(
+        flow: .nativeInteractiveSelection,
+        hasPermission: true,
+        interactiveResult: nil,
+        result: .success(ScreenCapturePayload(
+            imageData: Data([0xBA, 0xBE]),
+            sourceDisplay: "Display"
+        ))
+    )
+    let feedbackPlayer = TestCaptureFeedbackPlayer()
+    let settingsWindowController = TestSettingsWindowController()
+    let coordinator = CaptureCoordinator(
+        store: store,
+        captureService: captureService,
+        overlayFactory: overlayFactory,
+        settingsWindowController: settingsWindowController,
+        feedbackPlayer: feedbackPlayer,
+        beforeCapture: {}
+    )
+
+    coordinator.startCapture()
+
+    #expect(await waitUntil { captureService.interactiveCaptureCallCount == 1 })
+    #expect(overlayFactory.makeSessionCallCount == 0)
+    #expect(store.activeRecords.isEmpty)
+    #expect(settingsWindowController.showMissingPermissionMessageCallCount == 0)
+    #expect(feedbackPlayer.captureCompletedCallCount == 0)
+}
+
+@MainActor
+@Test func test_captureCompletion_waitsForOverlaySettleBeforeCapturing() async throws {
+    let store = ScreenshotStore(now: { Date(timeIntervalSince1970: 1_000) })
+    let overlayFactory = TestCaptureOverlaySessionFactory()
+    let captureService = TestScreenCaptureService(
+        hasPermission: true,
+        result: .success(ScreenCapturePayload(
+            imageData: Data([0xCA, 0xFE]),
+            sourceDisplay: "Display 1"
+        ))
+    )
+    let settingsWindowController = TestSettingsWindowController()
+    let settleGate = TestAsyncGate()
+    let coordinator = CaptureCoordinator(
+        store: store,
+        captureService: captureService,
+        overlayFactory: overlayFactory,
+        settingsWindowController: settingsWindowController,
+        beforeCapture: {
+            await settleGate.wait()
+        }
+    )
+
+    coordinator.startCapture()
+    let session = try #require(overlayFactory.session)
+    session.simulateSelection(CGRect(x: 10, y: 20, width: 30, height: 40))
+
+    #expect(overlayFactory.session?.endCallCount == 1)
+    #expect(store.activeRecords.isEmpty)
+    #expect(captureService.capturedRects.isEmpty)
+
+    await settleGate.open()
+
+    #expect(await waitUntil { captureService.capturedRects.count == 1 })
+    #expect(await waitUntil { store.activeRecords.count == 1 })
 }
 
 @MainActor
@@ -105,7 +208,7 @@ import Testing
 }
 
 @MainActor
-@Test func test_missingPermission_showsSettingsWindowInsteadOfStartingCapture() {
+@Test func test_startCapture_beginsOverlayEvenWhenPermissionPreflightIsFalse() {
     let store = ScreenshotStore(now: { Date(timeIntervalSince1970: 1_000) })
     let overlayFactory = TestCaptureOverlaySessionFactory()
     let captureService = TestScreenCaptureService(
@@ -126,21 +229,19 @@ import Testing
     coordinator.startCapture()
 
     #expect(store.activeRecords.isEmpty)
-    #expect(overlayFactory.makeSessionCallCount == 0)
-    #expect(settingsWindowController.showMissingPermissionMessageCallCount == 1)
+    #expect(overlayFactory.makeSessionCallCount == 1)
+    #expect(overlayFactory.session?.beginCallCount == 1)
+    #expect(settingsWindowController.showMissingPermissionMessageCallCount == 0)
 }
 
 @MainActor
-@Test func test_missingPermission_requestsAccessBeforeShowingSettingsWindow() {
+@Test func test_missingPermission_requestsAccessAfterCaptureFailure() async {
     let store = ScreenshotStore(now: { Date(timeIntervalSince1970: 1_000) })
     let overlayFactory = TestCaptureOverlaySessionFactory()
     let captureService = TestScreenCaptureService(
         hasPermission: false,
         requestPermissionResult: false,
-        result: .success(ScreenCapturePayload(
-            imageData: Data([0x01]),
-            sourceDisplay: "Display 1"
-        ))
+        result: .failure(TestScreenCaptureError.permissionDenied)
     )
     let settingsWindowController = TestSettingsWindowController()
     let coordinator = CaptureCoordinator(
@@ -151,10 +252,41 @@ import Testing
     )
 
     coordinator.startCapture()
+    overlayFactory.session?.simulateSelection(CGRect(x: 10, y: 20, width: 30, height: 40))
+
+    #expect(await waitUntil { captureService.requestPermissionCallCount == 1 })
+    #expect(overlayFactory.makeSessionCallCount == 1)
+    #expect(await waitUntil { settingsWindowController.showMissingPermissionMessageCallCount == 1 })
+}
+
+@MainActor
+@Test func test_permissionDeniedCapture_doesNotReportGenericFailureWhenPromptAccepted() async {
+    let store = ScreenshotStore(now: { Date(timeIntervalSince1970: 1_000) })
+    let overlayFactory = TestCaptureOverlaySessionFactory()
+    let captureService = TestScreenCaptureService(
+        hasPermission: false,
+        requestPermissionResult: true,
+        result: .failure(TestScreenCaptureError.permissionDenied)
+    )
+    let settingsWindowController = TestSettingsWindowController()
+    var reportedFailures: [String] = []
+    let coordinator = CaptureCoordinator(
+        store: store,
+        captureService: captureService,
+        overlayFactory: overlayFactory,
+        settingsWindowController: settingsWindowController,
+        onCaptureFailure: { error in
+            reportedFailures.append(String(describing: error))
+        }
+    )
+
+    coordinator.startCapture()
+    overlayFactory.session?.simulateSelection(CGRect(x: 10, y: 20, width: 30, height: 40))
+    _ = await waitUntil { captureService.capturedRects.count == 1 }
 
     #expect(captureService.requestPermissionCallCount == 1)
-    #expect(overlayFactory.makeSessionCallCount == 0)
-    #expect(settingsWindowController.showMissingPermissionMessageCallCount == 1)
+    #expect(settingsWindowController.showMissingPermissionMessageCallCount == 0)
+    #expect(reportedFailures.isEmpty)
 }
 
 @MainActor
@@ -261,26 +393,40 @@ private final class TestCaptureOverlaySession: CaptureOverlaySession {
 
 @MainActor
 private final class TestScreenCaptureService: ScreenCaptureServiceProtocol {
+    let flow: ScreenCaptureFlow
     private let hasPermission: Bool
     private let requestPermissionResult: Bool
     private let result: Result<ScreenCapturePayload, Error>
+    private let interactiveResult: ScreenCapturePayload?
     private let suspendCapture: Bool
     private var continuation: CheckedContinuation<Void, Never>?
     private var isResumed = false
 
     private(set) var capturedRects: [CGRect] = []
+    private(set) var interactiveCaptureCallCount = 0
     private(set) var requestPermissionCallCount = 0
 
     init(
+        flow: ScreenCaptureFlow = .overlayRectSelection,
         hasPermission: Bool,
         requestPermissionResult: Bool = false,
+        interactiveResult: ScreenCapturePayload? = ScreenCapturePayload(
+            imageData: Data([0xCA, 0xFE]),
+            sourceDisplay: "Display"
+        ),
         result: Result<ScreenCapturePayload, Error>,
         suspendCapture: Bool = false
     ) {
+        self.flow = flow
         self.hasPermission = hasPermission
         self.requestPermissionResult = requestPermissionResult
+        self.interactiveResult = interactiveResult
         self.result = result
         self.suspendCapture = suspendCapture
+    }
+
+    var captureFlow: ScreenCaptureFlow {
+        flow
     }
 
     func hasScreenRecordingPermission() -> Bool {
@@ -303,8 +449,16 @@ private final class TestScreenCaptureService: ScreenCaptureServiceProtocol {
         case let .success(payload):
             return payload
         case let .failure(error):
+            if case TestScreenCaptureError.permissionDenied = error {
+                throw NSError(domain: SCStreamErrorDomain, code: -3801)
+            }
             throw error
         }
+    }
+
+    func captureInteractiveImage() async throws -> ScreenCapturePayload? {
+        interactiveCaptureCallCount += 1
+        return interactiveResult
     }
 
     func resumeCapture() async {
@@ -316,6 +470,28 @@ private final class TestScreenCaptureService: ScreenCaptureServiceProtocol {
 
 private enum TestScreenCaptureError: Error {
     case captureFailed
+    case permissionDenied
+}
+
+actor TestAsyncGate {
+    private var continuation: CheckedContinuation<Void, Never>?
+    private var isOpen = false
+
+    func wait() async {
+        if isOpen {
+            return
+        }
+
+        await withCheckedContinuation { continuation in
+            self.continuation = continuation
+        }
+    }
+
+    func open() {
+        isOpen = true
+        continuation?.resume()
+        continuation = nil
+    }
 }
 
 @MainActor

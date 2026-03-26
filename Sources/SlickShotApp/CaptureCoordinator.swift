@@ -1,5 +1,6 @@
 import CoreGraphics
 import Foundation
+@preconcurrency import ScreenCaptureKit
 import SlickShotCore
 
 struct ScreenCapturePayload: Equatable {
@@ -7,11 +8,18 @@ struct ScreenCapturePayload: Equatable {
     let sourceDisplay: String
 }
 
+enum ScreenCaptureFlow {
+    case overlayRectSelection
+    case nativeInteractiveSelection
+}
+
 @MainActor
 protocol ScreenCaptureServiceProtocol {
+    var captureFlow: ScreenCaptureFlow { get }
     func hasScreenRecordingPermission() -> Bool
     func requestScreenRecordingPermission() -> Bool
     func captureImage(in rect: CGRect) async throws -> ScreenCapturePayload
+    func captureInteractiveImage() async throws -> ScreenCapturePayload?
 }
 
 @MainActor
@@ -35,14 +43,18 @@ protocol SettingsWindowControlling: AnyObject {
 
 @MainActor
 final class CaptureCoordinator {
+    private static let overlaySettleDelayNanoseconds: UInt64 = 120_000_000
+
     private let store: ScreenshotStore
     private let captureService: ScreenCaptureServiceProtocol
     private let overlayFactory: CaptureOverlaySessionFactory
     private let settingsWindowController: SettingsWindowControlling
     private let feedbackPlayer: CaptureFeedbackPlaying
+    private let beforeCapture: @Sendable () async -> Void
     private let onCaptureFailure: (any Error) -> Void
 
     private var activeSession: CaptureOverlaySession?
+    private var interactiveCaptureTask: Task<Void, Never>?
 
     init(
         store: ScreenshotStore,
@@ -50,6 +62,9 @@ final class CaptureCoordinator {
         overlayFactory: CaptureOverlaySessionFactory,
         settingsWindowController: SettingsWindowControlling,
         feedbackPlayer: CaptureFeedbackPlaying = NullCaptureFeedbackPlayer(),
+        beforeCapture: @escaping @Sendable () async -> Void = {
+            try? await Task.sleep(nanoseconds: overlaySettleDelayNanoseconds)
+        },
         onCaptureFailure: @escaping (any Error) -> Void = { error in
             NSLog("SlickShot capture failed: %@", String(describing: error))
         }
@@ -59,23 +74,19 @@ final class CaptureCoordinator {
         self.overlayFactory = overlayFactory
         self.settingsWindowController = settingsWindowController
         self.feedbackPlayer = feedbackPlayer
+        self.beforeCapture = beforeCapture
         self.onCaptureFailure = onCaptureFailure
     }
 
     func startCapture() {
-        guard activeSession == nil else {
+        guard activeSession == nil, interactiveCaptureTask == nil else {
             return
         }
 
-        if !captureService.hasScreenRecordingPermission() {
-            guard captureService.requestScreenRecordingPermission() else {
-                settingsWindowController.showMissingPermissionMessage()
-                return
+        if captureService.captureFlow == .nativeInteractiveSelection {
+            interactiveCaptureTask = Task { [weak self] in
+                await self?.captureInteractively()
             }
-        }
-
-        guard captureService.hasScreenRecordingPermission() else {
-            settingsWindowController.showMissingPermissionMessage()
             return
         }
 
@@ -89,6 +100,33 @@ final class CaptureCoordinator {
         )
         activeSession = session
         session.begin()
+    }
+
+    private func captureInteractively() async {
+        defer {
+            interactiveCaptureTask = nil
+        }
+
+        do {
+            guard let payload = try await captureService.captureInteractiveImage() else {
+                return
+            }
+            _ = store.insert(
+                image: payload.imageData,
+                sourceDisplay: payload.sourceDisplay,
+                selectionRect: .zero
+            )
+            feedbackPlayer.playCaptureCompleted()
+        } catch {
+            if Self.isScreenRecordingPermissionError(error) {
+                let granted = captureService.requestScreenRecordingPermission()
+                if granted == false {
+                    settingsWindowController.showMissingPermissionMessage()
+                }
+                return
+            }
+            onCaptureFailure(error)
+        }
     }
 
     private func completeCapture(with rect: CGRect) {
@@ -107,6 +145,7 @@ final class CaptureCoordinator {
 
     private func captureSelection(_ selectionRect: CGRect) async {
         do {
+            await beforeCapture()
             let payload = try await captureService.captureImage(in: selectionRect)
             _ = store.insert(
                 image: payload.imageData,
@@ -115,6 +154,13 @@ final class CaptureCoordinator {
             )
             feedbackPlayer.playCaptureCompleted()
         } catch {
+            if Self.isScreenRecordingPermissionError(error) {
+                let granted = captureService.requestScreenRecordingPermission()
+                if granted == false {
+                    settingsWindowController.showMissingPermissionMessage()
+                }
+                return
+            }
             onCaptureFailure(error)
         }
     }
@@ -127,5 +173,10 @@ final class CaptureCoordinator {
         let session = activeSession
         activeSession = nil
         session?.end()
+    }
+
+    private static func isScreenRecordingPermissionError(_ error: any Error) -> Bool {
+        let nsError = error as NSError
+        return nsError.domain == SCStreamErrorDomain && nsError.code == -3801
     }
 }
