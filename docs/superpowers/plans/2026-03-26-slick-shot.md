@@ -37,7 +37,7 @@ Expected: FAIL because `ScreenshotStore` does not exist yet
 
 - [ ] **Step 3: Add package manifest and minimal store implementation**
 
-Create the executable and test targets. Add a minimal `ScreenshotStore` with insert/delete/list APIs and deterministic clock injection for expiry timestamps.
+Create the executable and test targets. Add a minimal `ScreenshotStore` with insert/delete/list APIs and deterministic clock injection for expiry timestamps. Define `ScreenshotRecord` with the v1 core fields needed by later tasks: `id`, `createdAt`, `expiresAt`, `status`, `imageRepresentation`, `displayThumbnailRepresentation`, `sourceDisplay`, `selectionRect`, and optional `temporaryBackingURL`.
 
 - [ ] **Step 4: Run test to verify it passes**
 
@@ -77,6 +77,7 @@ func test_markDropped_transitions_record() { ... }
 func test_expireRemovesOldRecordsAfterRetention() { ... }
 func test_markDragging_pausesExpiryUntilDragEnds() { ... }
 func test_activeRecords_returns_newest_first() { ... }
+func test_reconcileExpiry_removesExpiredRecordsAfterResume() { ... }
 ```
 
 - [ ] **Step 2: Run test to verify it fails**
@@ -91,7 +92,9 @@ Add:
 - retention expiry
 - ordered active record listing
 - `markDragging` transition and timer pause/resume behavior
+- timestamp-based expiry reconciliation for app resume/background return
 - drop/delete transitions
+- store change publication so AppKit overlay controllers can observe updates without owning lifecycle logic
 
 - [ ] **Step 4: Run test to verify it passes**
 
@@ -115,6 +118,7 @@ git commit -m "feat: add screenshot lifecycle store"
 - Create: `Sources/SlickShotApp/ThumbnailItemView.swift`
 - Modify: `Sources/SlickShotApp/AppDelegate.swift`
 - Modify: `Sources/SlickShotCore/ScreenshotStore.swift`
+- Modify: `Tests/SlickShotCoreTests/ScreenshotStoreTests.swift`
 
 - [ ] **Step 1: Write failing tests for presentation ordering**
 
@@ -155,6 +159,7 @@ git commit -m "feat: add thumbnail overlay stack"
 - Create: `Sources/SlickShotApp/CaptureOverlayWindow.swift`
 - Create: `Sources/SlickShotApp/CaptureOverlayView.swift`
 - Create: `Sources/SlickShotApp/ScreenCaptureService.swift`
+- Create: `Sources/SlickShotApp/SettingsWindowController.swift`
 - Modify: `Sources/SlickShotApp/StatusItemController.swift`
 - Modify: `Sources/SlickShotApp/AppDelegate.swift`
 - Modify: `Tests/SlickShotCoreTests/ScreenshotStoreTests.swift`
@@ -184,6 +189,9 @@ Build:
 
 Run: `swift run SlickShotApp`
 Expected: choosing `Capture Screenshot` opens the selector and produces an overlay thumbnail
+
+Run: `swift run SlickShotApp`
+Expected: pressing `Escape` during selection cancels capture and leaves no new store entry or thumbnail
 
 - [ ] **Step 5: Verify missing-permission behavior**
 
@@ -244,10 +252,10 @@ git commit -m "feat: add drag transfer cleanup"
 
 **Files:**
 - Create: `Sources/SlickShotApp/HotkeyMonitor.swift`
-- Create: `Sources/SlickShotApp/SettingsWindowController.swift`
 - Modify: `Sources/SlickShotApp/AppDelegate.swift`
 - Modify: `Sources/SlickShotApp/StatusItemController.swift`
 - Modify: `README.md`
+- Create: `Tests/SlickShotCoreTests/HotkeyConfigurationTests.swift`
 
 - [ ] **Step 1: Write the failing tests for hotkey preference parsing**
 
