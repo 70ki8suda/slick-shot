@@ -7,6 +7,10 @@ final class DragSessionProvider: NSObject, NSDraggingSource {
     private let storeResolver: () -> ScreenshotStore?
     private var activeRecordID: UUID?
 
+    var hasActiveDrag: Bool {
+        activeRecordID != nil
+    }
+
     init(storeResolver: @escaping () -> ScreenshotStore? = { ScreenshotStore.current }) {
         self.storeResolver = storeResolver
     }
@@ -21,7 +25,7 @@ final class DragSessionProvider: NSObject, NSDraggingSource {
         }
 
         do {
-            let fileURL = try store.beginDrag(id: record.id)
+            let fileURL = try startManagedDrag(for: record.id, store: store)
             let draggingItem = NSDraggingItem(pasteboardWriter: fileURL as NSURL)
             let previewImage = NSImage(data: record.displayThumbnailRepresentation)
                 ?? NSImage(data: record.imageRepresentation)
@@ -46,16 +50,38 @@ final class DragSessionProvider: NSObject, NSDraggingSource {
     }
 
     func draggingSession(_ session: NSDraggingSession, endedAt screenPoint: NSPoint, operation: NSDragOperation) {
-        guard let activeRecordID, let store = storeResolver() else {
+        finishManagedDrag(operation: operation)
+    }
+
+    func startManagedDrag(for id: UUID) throws -> URL {
+        guard let store = storeResolver() else {
+            throw ScreenshotStore.DragPreparationError.missingRecord
+        }
+
+        return try startManagedDrag(for: id, store: store)
+    }
+
+    func finishManagedDrag(operation: NSDragOperation) {
+        guard let activeRecordID else {
             return
         }
 
-        defer { self.activeRecordID = nil }
+        self.activeRecordID = nil
+
+        guard let store = storeResolver() else {
+            return
+        }
 
         if operation == [] {
             store.cancelDrag(id: activeRecordID)
         } else {
             store.markDropped(id: activeRecordID)
         }
+    }
+
+    private func startManagedDrag(for id: UUID, store: ScreenshotStore) throws -> URL {
+        let fileURL = try store.beginDrag(id: id)
+        activeRecordID = id
+        return fileURL
     }
 }

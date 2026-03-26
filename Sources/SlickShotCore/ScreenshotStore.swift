@@ -64,7 +64,7 @@ public final class ScreenshotStore {
         notifyChange()
     }
 
-    public func markDragging(id: UUID) {
+    func markDragging(id: UUID) {
         guard let entry = records[id], entry.record.status == .pending else {
             return
         }

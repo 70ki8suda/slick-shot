@@ -1,7 +1,9 @@
+import AppKit
 import CoreGraphics
 import Foundation
 import Testing
 
+@testable import SlickShotApp
 @testable import SlickShotCore
 
 private extension Data {
@@ -146,6 +148,43 @@ struct TemporaryFileManagerTests {
         )
 
         #expect(FileManager.default.fileExists(atPath: staleURL.path) == false)
+    }
+
+    @Test @MainActor func dragSessionProvider_rejectedDrag_cancelsManagedTempFileLifecycle() throws {
+        let directory = try TestDirectory()
+        let manager = TemporaryFileManager(rootDirectory: directory.url)
+        let store = ScreenshotStore(
+            now: { Date(timeIntervalSince1970: 1_000) },
+            temporaryFileManager: manager
+        )
+        let id = store.insert(image: .pngStub(), sourceDisplay: "main", selectionRect: .zero)
+        let provider = DragSessionProvider(storeResolver: { store })
+
+        let fileURL = try provider.startManagedDrag(for: id)
+        provider.finishManagedDrag(operation: [])
+
+        #expect(provider.hasActiveDrag == false)
+        let record = try #require(store.record(id: id))
+        #expect(record.status == .pending)
+        #expect(record.temporaryBackingURL == nil)
+        #expect(FileManager.default.fileExists(atPath: fileURL.path) == false)
+    }
+
+    @Test @MainActor func dragSessionProvider_finishWithoutStoreClearsActiveDragState() throws {
+        let directory = try TestDirectory()
+        let manager = TemporaryFileManager(rootDirectory: directory.url)
+        var store: ScreenshotStore? = ScreenshotStore(
+            now: { Date(timeIntervalSince1970: 1_000) },
+            temporaryFileManager: manager
+        )
+        let id = store!.insert(image: .pngStub(), sourceDisplay: "main", selectionRect: .zero)
+        let provider = DragSessionProvider(storeResolver: { store })
+
+        _ = try provider.startManagedDrag(for: id)
+        store = nil
+        provider.finishManagedDrag(operation: .copy)
+
+        #expect(provider.hasActiveDrag == false)
     }
 }
 

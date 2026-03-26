@@ -24,7 +24,7 @@ let package = Package(
         ),
         .testTarget(
             name: "SlickShotCoreTests",
-            dependencies: ["SlickShotCore"]
+            dependencies: ["SlickShotApp", "SlickShotCore"]
         )
     ]
 )
