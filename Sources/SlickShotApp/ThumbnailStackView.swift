@@ -13,6 +13,7 @@ final class ThumbnailStackView: NSView {
     private let backdropGlowLayer = CAGradientLayer()
     private var hoverTrackingArea: NSTrackingArea?
     private var isHoveringStack = false
+    private var foregroundFrame: CGRect = .zero
     private var currentPresentation = ThumbnailStackPresenter.Presentation(items: [])
     private var itemViews: [UUID: ThumbnailItemView] = [:]
 
@@ -43,6 +44,7 @@ final class ThumbnailStackView: NSView {
         let oldIDs = Set(currentPresentation.items.map(\.id))
         currentPresentation = presentation
         syncItemViews(oldIDs: oldIDs)
+        foregroundFrame = .zero
         applyChromeState(animated: false)
         needsLayout = true
         layoutSubtreeIfNeeded()
@@ -51,9 +53,10 @@ final class ThumbnailStackView: NSView {
     override func layout() {
         super.layout()
         layoutStatusLabel()
-        layoutTrashButton()
         layoutItemViews()
+        layoutTrashButton()
         backdropGlowLayer.frame = bounds.insetBy(dx: 12, dy: 8)
+        refreshHoverStateFromMouseLocation()
     }
 
     override func updateTrackingAreas() {
@@ -70,6 +73,7 @@ final class ThumbnailStackView: NSView {
         )
         addTrackingArea(trackingArea)
         hoverTrackingArea = trackingArea
+        refreshHoverStateFromMouseLocation()
     }
 
     override func mouseEntered(with event: NSEvent) {
@@ -170,10 +174,15 @@ final class ThumbnailStackView: NSView {
 
     private func layoutTrashButton() {
         let size: CGFloat = 28
-        let inset: CGFloat = 14
+        guard foregroundFrame.isEmpty == false else {
+            trashButton.frame = CGRect(x: bounds.maxX - size, y: bounds.maxY - size, width: size, height: size)
+            return
+        }
+
+        let inset: CGFloat = 8
         trashButton.frame = CGRect(
-            x: bounds.maxX - inset - size,
-            y: bounds.maxY - inset - size,
+            x: foregroundFrame.maxX - inset - size,
+            y: foregroundFrame.maxY - inset - size,
             width: size,
             height: size
         )
@@ -182,6 +191,7 @@ final class ThumbnailStackView: NSView {
     private func layoutItemViews() {
         let anchorX = bounds.maxX - 12
         let anchorY = bounds.minY + 12
+        foregroundFrame = .zero
 
         for item in currentPresentation.items {
             guard let view = itemViews[item.id] else { continue }
@@ -202,6 +212,10 @@ final class ThumbnailStackView: NSView {
                 }
             } else {
                 view.frame = frame
+            }
+
+            if item.role == .foreground {
+                foregroundFrame = frame
             }
 
             let targetScale = CATransform3DMakeScale(item.scale, item.scale, 1)
@@ -225,6 +239,16 @@ final class ThumbnailStackView: NSView {
         isHoveringStack = isHovering
         applyChromeState(animated: true)
         needsLayout = true
+    }
+
+    private func refreshHoverStateFromMouseLocation() {
+        guard let window else {
+            setHover(false)
+            return
+        }
+
+        let mouseLocation = convert(window.mouseLocationOutsideOfEventStream, from: nil)
+        setHover(bounds.contains(mouseLocation))
     }
 
     private func applyChromeState(animated: Bool) {
