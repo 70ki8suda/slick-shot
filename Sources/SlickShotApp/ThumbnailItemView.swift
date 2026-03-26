@@ -4,6 +4,10 @@ import SlickShotCore
 @MainActor
 final class ThumbnailItemView: NSView {
     private let imageView = NSImageView()
+    private let dragSessionProvider = DragSessionProvider()
+    private var record: ScreenshotRecord?
+    private var mouseDownEvent: NSEvent?
+    private var hasStartedDrag = false
 
     override init(frame frameRect: NSRect) {
         super.init(frame: frameRect)
@@ -31,6 +35,34 @@ final class ThumbnailItemView: NSView {
     }
 
     func configure(with record: ScreenshotRecord) {
+        self.record = record
         imageView.image = NSImage(data: record.displayThumbnailRepresentation)
+    }
+
+    override func mouseDown(with event: NSEvent) {
+        mouseDownEvent = event
+        hasStartedDrag = false
+    }
+
+    override func mouseDragged(with event: NSEvent) {
+        guard hasStartedDrag == false,
+              let record,
+              let mouseDownEvent,
+              dragDistance(from: mouseDownEvent, to: event) >= 4 else {
+            return
+        }
+
+        hasStartedDrag = dragSessionProvider.beginDrag(for: record, from: self, event: mouseDownEvent)
+    }
+
+    override func mouseUp(with event: NSEvent) {
+        mouseDownEvent = nil
+        hasStartedDrag = false
+    }
+
+    private func dragDistance(from startEvent: NSEvent, to currentEvent: NSEvent) -> CGFloat {
+        let start = convert(startEvent.locationInWindow, from: nil)
+        let current = convert(currentEvent.locationInWindow, from: nil)
+        return hypot(current.x - start.x, current.y - start.y)
     }
 }

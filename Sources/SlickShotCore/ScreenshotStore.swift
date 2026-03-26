@@ -4,8 +4,10 @@ import CoreGraphics
 public final class ScreenshotStore {
     public static let didChangeNotification = Notification.Name("SlickShotCore.ScreenshotStoreDidChange")
     public static let retentionInterval: TimeInterval = 300
+    nonisolated(unsafe) public private(set) static var current: ScreenshotStore?
 
     private let now: () -> Date
+    private let temporaryFileManager: TemporaryFileManaging
     private var nextSequence: Int = 0
     private var records: [UUID: Entry] = [:]
     private var pausedRetentionIntervals: [UUID: TimeInterval] = [:]
@@ -17,8 +19,20 @@ public final class ScreenshotStore {
         var record: ScreenshotRecord
     }
 
-    public init(now: @escaping () -> Date = Date.init) {
+    public enum DragPreparationError: Error, Equatable {
+        case missingRecord
+        case expiredRecord
+        case unavailableRecord
+    }
+
+    public init(
+        now: @escaping () -> Date = Date.init,
+        temporaryFileManager: TemporaryFileManaging = TemporaryFileManager()
+    ) {
         self.now = now
+        self.temporaryFileManager = temporaryFileManager
+        temporaryFileManager.recoverStaleFiles()
+        Self.current = self
     }
 
     @discardableResult
@@ -42,9 +56,10 @@ public final class ScreenshotStore {
     }
 
     public func delete(id: UUID) {
-        guard records.removeValue(forKey: id) != nil else {
+        guard let entry = records.removeValue(forKey: id) else {
             return
         }
+        cleanupTemporaryFile(for: entry.record)
         pausedRetentionIntervals.removeValue(forKey: id)
         notifyChange()
     }
@@ -59,7 +74,47 @@ public final class ScreenshotStore {
         }
 
         pausedRetentionIntervals[id] = max(0, entry.record.expiresAt.timeIntervalSince(now()))
-        updateStatus(for: id, to: .dragging)
+        updateRecord(for: id) { record in
+            record.status = .dragging
+        }
+    }
+
+    public func beginDrag(id: UUID) throws -> URL {
+        guard let entry = records[id] else {
+            throw DragPreparationError.missingRecord
+        }
+
+        guard entry.record.status != .dropped else {
+            throw DragPreparationError.unavailableRecord
+        }
+
+        if removeExpiredRecordIfNeeded(id: id, entry: entry) {
+            throw DragPreparationError.expiredRecord
+        }
+
+        let fileURL = try existingOrNewTemporaryFileURL(for: id)
+        pausedRetentionIntervals[id] = max(0, entry.record.expiresAt.timeIntervalSince(now()))
+        updateRecord(for: id) { record in
+            record.status = .dragging
+            record.temporaryBackingURL = fileURL
+        }
+        return fileURL
+    }
+
+    public func cancelDrag(id: UUID) {
+        guard let entry = records[id] else {
+            return
+        }
+
+        let remaining = pausedRetentionIntervals.removeValue(forKey: id)
+        cleanupTemporaryFile(for: entry.record)
+        updateRecord(for: id) { record in
+            record.status = .pending
+            if let remaining {
+                record.expiresAt = now().addingTimeInterval(remaining)
+            }
+            record.temporaryBackingURL = nil
+        }
     }
 
     public func markDropped(id: UUID) {
@@ -68,23 +123,12 @@ public final class ScreenshotStore {
         }
 
         let remaining = pausedRetentionIntervals.removeValue(forKey: id)
-        let expiresAt = remaining.map { now().addingTimeInterval($0) } ?? entry.record.expiresAt
-
-        records[id] = Entry(
-            sequence: entry.sequence,
-            record: ScreenshotRecord(
-                id: entry.record.id,
-                createdAt: entry.record.createdAt,
-                expiresAt: expiresAt,
-                status: .dropped,
-                imageRepresentation: entry.record.imageRepresentation,
-                displayThumbnailRepresentation: entry.record.displayThumbnailRepresentation,
-                sourceDisplay: entry.record.sourceDisplay,
-                selectionRect: entry.record.selectionRect,
-                temporaryBackingURL: entry.record.temporaryBackingURL
-            )
-        )
-        notifyChange()
+        cleanupTemporaryFile(for: entry.record)
+        updateRecord(for: id) { record in
+            record.expiresAt = remaining.map { now().addingTimeInterval($0) } ?? record.expiresAt
+            record.status = .dropped
+            record.temporaryBackingURL = nil
+        }
     }
 
     public func expire() {
@@ -98,7 +142,12 @@ public final class ScreenshotStore {
             return
         }
 
-        expiredIDs.forEach { records[$0] = nil }
+        expiredIDs.forEach {
+            if let entry = records[$0] {
+                cleanupTemporaryFile(for: entry.record)
+            }
+            records[$0] = nil
+        }
         expiredIDs.forEach { pausedRetentionIntervals.removeValue(forKey: $0) }
         notifyChange()
     }
@@ -127,25 +176,13 @@ public final class ScreenshotStore {
         activeRecords
     }
 
-    private func updateStatus(for id: UUID, to status: ScreenshotStatus) {
-        guard let entry = records[id], entry.record.status != status else {
+    private func updateRecord(for id: UUID, mutate: (inout ScreenshotRecord) -> Void) {
+        guard var entry = records[id] else {
             return
         }
 
-        records[id] = Entry(
-            sequence: entry.sequence,
-            record: ScreenshotRecord(
-                id: entry.record.id,
-                createdAt: entry.record.createdAt,
-                expiresAt: entry.record.expiresAt,
-                status: status,
-                imageRepresentation: entry.record.imageRepresentation,
-                displayThumbnailRepresentation: entry.record.displayThumbnailRepresentation,
-                sourceDisplay: entry.record.sourceDisplay,
-                selectionRect: entry.record.selectionRect,
-                temporaryBackingURL: entry.record.temporaryBackingURL
-            )
-        )
+        mutate(&entry.record)
+        records[id] = entry
         notifyChange()
     }
 
@@ -159,9 +196,31 @@ public final class ScreenshotStore {
             return false
         }
 
+        cleanupTemporaryFile(for: entry.record)
         records[id] = nil
         pausedRetentionIntervals.removeValue(forKey: id)
         notifyChange()
         return true
+    }
+
+    private func existingOrNewTemporaryFileURL(for id: UUID) throws -> URL {
+        guard let record = records[id]?.record else {
+            throw DragPreparationError.missingRecord
+        }
+
+        if let existingURL = record.temporaryBackingURL,
+           FileManager.default.fileExists(atPath: existingURL.path) {
+            return existingURL
+        }
+
+        return try temporaryFileManager.writePNG(data: record.imageRepresentation, for: id)
+    }
+
+    private func cleanupTemporaryFile(for record: ScreenshotRecord) {
+        guard let temporaryBackingURL = record.temporaryBackingURL else {
+            return
+        }
+
+        temporaryFileManager.cleanup(temporaryBackingURL)
     }
 }

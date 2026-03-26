@@ -10,13 +10,13 @@ public enum ScreenshotStatus: Equatable {
 public struct ScreenshotRecord: Identifiable, Equatable {
     public let id: UUID
     public let createdAt: Date
-    public let expiresAt: Date
-    public let status: ScreenshotStatus
+    public var expiresAt: Date
+    public var status: ScreenshotStatus
     public let imageRepresentation: Data
     public let displayThumbnailRepresentation: Data
     public let sourceDisplay: String
     public let selectionRect: CGRect
-    public let temporaryBackingURL: URL?
+    public var temporaryBackingURL: URL?
 
     public init(
         id: UUID,
