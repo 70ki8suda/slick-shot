@@ -21,6 +21,14 @@ SlickShot is currently developed and run as a Swift Package executable:
 swift run SlickShotApp
 ```
 
+To install a Raycast-launchable app bundle into `~/Applications`:
+
+```bash
+./Scripts/install-app.sh
+```
+
+This creates `~/Applications/SlickShot.app`, which Raycast can launch through its normal application search.
+
 On first use, macOS Screen Recording permission is required. If permission is missing, SlickShot opens its settings window and provides a shortcut to the `Privacy & Security > Screen Recording` pane.
 
 ## Hotkey behavior
