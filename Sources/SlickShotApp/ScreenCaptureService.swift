@@ -243,9 +243,6 @@ final class ScreenCaptureService: ScreenCaptureServiceProtocol {
                 nsError.code,
                 nsError.localizedDescription
             )
-            guard hasScreenRecordingPermission() else {
-                throw error
-            }
             guard let fallbackImage = legacyRegionCapturer.captureImage(in: selectionRect) else {
                 throw error
             }

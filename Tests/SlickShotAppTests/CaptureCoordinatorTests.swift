@@ -236,7 +236,7 @@ import Testing
 }
 
 @MainActor
-@Test func test_missingPermission_requestsAccessAfterCaptureFailure() async {
+@Test func test_missingPermission_showsSettingsWithoutAutoRequestAfterCaptureFailure() async {
     let store = ScreenshotStore(now: { Date(timeIntervalSince1970: 1_000) })
     let overlayFactory = TestCaptureOverlaySessionFactory()
     let captureService = TestScreenCaptureService(
@@ -255,8 +255,9 @@ import Testing
     coordinator.startCapture()
     overlayFactory.session?.simulateSelection(CGRect(x: 10, y: 20, width: 30, height: 40))
 
-    #expect(await waitUntil { captureService.requestPermissionCallCount == 1 })
+    #expect(await waitUntil { captureService.capturedRects.count == 1 })
     #expect(overlayFactory.makeSessionCallCount == 1)
+    #expect(captureService.requestPermissionCallCount == 0)
     #expect(await waitUntil { settingsWindowController.showMissingPermissionMessageCallCount == 1 })
 }
 
@@ -285,8 +286,8 @@ import Testing
     overlayFactory.session?.simulateSelection(CGRect(x: 10, y: 20, width: 30, height: 40))
     _ = await waitUntil { captureService.capturedRects.count == 1 }
 
-    #expect(captureService.requestPermissionCallCount == 1)
-    #expect(settingsWindowController.showMissingPermissionMessageCallCount == 0)
+    #expect(captureService.requestPermissionCallCount == 0)
+    #expect(settingsWindowController.showMissingPermissionMessageCallCount == 1)
     #expect(reportedFailures.isEmpty)
 }
 

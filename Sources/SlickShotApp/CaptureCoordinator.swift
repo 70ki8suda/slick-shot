@@ -188,11 +188,8 @@ final class CaptureCoordinator {
                     onCaptureFailure(error)
                     return
                 }
-                let granted = captureService.requestScreenRecordingPermission()
-                NSLog("SlickShot permission request result=%d", granted)
-                if granted == false {
-                    settingsWindowController.showMissingPermissionMessage()
-                }
+                NSLog("SlickShot screen recording not granted; opening settings without auto-request")
+                settingsWindowController.showMissingPermissionMessage()
                 return
             }
             onCaptureFailure(error)

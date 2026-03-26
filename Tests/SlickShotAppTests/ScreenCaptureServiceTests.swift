@@ -25,7 +25,27 @@ import Testing
 }
 
 @MainActor
-@Test func test_capturePayloadWithFallback_rethrowsOriginalErrorWhenPermissionMissing() async {
+@Test func test_capturePayloadWithFallback_usesLegacyCaptureWhenPermissionCheckerIsFalse() async throws {
+    let fallbackImage = try #require(makeCGImage(size: CGSize(width: 40, height: 20)))
+    let service = ScreenCaptureService(
+        permissionChecker: { false },
+        legacyRegionCapturer: TestLegacyRegionCapturer(image: fallbackImage)
+    )
+
+    let payload = try await service.capturePayloadWithFallback(
+        selectionRect: CGRect(x: 100, y: 200, width: 40, height: 20),
+        sourceDisplay: "Display 1",
+        modernCapture: {
+            throw TestScreenCaptureFailure.modernBackendFailed
+        }
+    )
+
+    #expect(payload.sourceDisplay == "Display 1")
+    #expect(payload.imageData.isEmpty == false)
+}
+
+@MainActor
+@Test func test_capturePayloadWithFallback_rethrowsOriginalErrorWhenLegacyFallbackUnavailable() async {
     let service = ScreenCaptureService(
         permissionChecker: { false },
         legacyRegionCapturer: TestLegacyRegionCapturer(image: nil)
