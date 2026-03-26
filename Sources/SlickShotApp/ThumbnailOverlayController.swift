@@ -58,14 +58,18 @@ final class ThumbnailOverlayController: NSObject {
     }
 
     private func positionWindow() {
-        let presentation = presenter.present(records: store.activeRecords)
+        let records = store.activeRecords
+        let presentation = presenter.present(records: records)
         let preferredSize = CGSize(
             width: 300,
             height: 176 + (CGFloat(max(0, presentation.items.count - 1)) * 8)
         )
 
         guard let visibleFrame = Self.resolvedVisibleFrame(
-            sourceVisibleFrame: window.screen?.visibleFrame,
+            sourceVisibleFrame: Self.preferredVisibleFrame(
+                for: records.first,
+                availableScreens: NSScreen.screens
+            ) ?? window.screen?.visibleFrame,
             fallbackVisibleFrames: NSScreen.screens.map(\.visibleFrame)
         ) else { return }
 
@@ -106,5 +110,48 @@ final class ThumbnailOverlayController: NSObject {
         return fallbackVisibleFrames.max { lhs, rhs in
             lhs.width * lhs.height < rhs.width * rhs.height
         }
+    }
+
+    nonisolated static func preferredVisibleFrame(
+        for record: ScreenshotRecord?,
+        availableScreens: [NSScreen]
+    ) -> CGRect? {
+        guard let record else { return nil }
+        return preferredVisibleFrame(
+            for: record.selectionRect,
+            availableFrames: availableScreens.map { ($0.frame, $0.visibleFrame) }
+        )
+    }
+
+    nonisolated static func preferredVisibleFrame(
+        for selectionRect: CGRect,
+        availableFrames: [(frame: CGRect, visibleFrame: CGRect)]
+    ) -> CGRect? {
+        let selectionRect = selectionRect.standardized
+        guard selectionRect.isEmpty == false else { return nil }
+
+        let selectionCenter = CGPoint(x: selectionRect.midX, y: selectionRect.midY)
+        if let containingScreen = availableFrames.first(where: { $0.frame.contains(selectionCenter) }) {
+            return containingScreen.visibleFrame
+        }
+
+        let bestIntersection = availableFrames
+            .map { screen in
+                (visibleFrame: screen.visibleFrame, area: screen.frame.intersection(selectionRect).area)
+            }
+            .max { lhs, rhs in lhs.area < rhs.area }
+
+        guard let bestIntersection, bestIntersection.area > 0 else {
+            return nil
+        }
+
+        return bestIntersection.visibleFrame
+    }
+}
+
+private extension CGRect {
+    var area: CGFloat {
+        guard isNull == false, isEmpty == false else { return 0 }
+        return width * height
     }
 }

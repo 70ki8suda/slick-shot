@@ -105,6 +105,34 @@ private func makeRecord(id: UUID, createdAt: Date) -> ScreenshotRecord {
     #expect(frame.origin == CGPoint(x: 100, y: 50))
 }
 
+@Test func test_overlay_prefers_screen_containing_latest_selection_center() {
+    let screens = [
+        (frame: CGRect(x: 0, y: 0, width: 1440, height: 900), visibleFrame: CGRect(x: 0, y: 0, width: 1440, height: 860)),
+        (frame: CGRect(x: 1440, y: 0, width: 1728, height: 1117), visibleFrame: CGRect(x: 1440, y: 0, width: 1728, height: 1077))
+    ]
+
+    let preferred = ThumbnailOverlayController.preferredVisibleFrame(
+        for: CGRect(x: 1500, y: 120, width: 180, height: 120),
+        availableFrames: screens
+    )
+
+    #expect(preferred == screens[1].visibleFrame)
+}
+
+@Test func test_overlay_prefers_screen_with_largest_selection_intersection() {
+    let screens = [
+        (frame: CGRect(x: 0, y: 0, width: 1440, height: 900), visibleFrame: CGRect(x: 0, y: 0, width: 1440, height: 860)),
+        (frame: CGRect(x: 1440, y: 0, width: 1728, height: 1117), visibleFrame: CGRect(x: 1440, y: 0, width: 1728, height: 1077))
+    ]
+
+    let preferred = ThumbnailOverlayController.preferredVisibleFrame(
+        for: CGRect(x: 1320, y: 80, width: 260, height: 140),
+        availableFrames: screens
+    )
+
+    #expect(preferred == screens[1].visibleFrame)
+}
+
 @Test func test_app_delegate_only_seeds_demo_records_in_debug_when_enabled() {
     #expect(AppDelegate.shouldSeedDemoRecords(environment: [:]) == false)
     #expect(AppDelegate.shouldSeedDemoRecords(environment: ["SLICKSHOT_SEED_THUMBNAILS": "1"]) == true)
