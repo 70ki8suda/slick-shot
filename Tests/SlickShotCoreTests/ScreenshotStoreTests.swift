@@ -9,40 +9,87 @@ private extension Data {
     }
 }
 
-@Test func test_insert_createsPendingRecordWithFiveMinuteExpiry() throws {
+@Test func test_markDropped_transitionsPendingRecordToDropped() throws {
     let now = Date(timeIntervalSince1970: 1_000)
     let store = ScreenshotStore(now: { now })
-    let id = store.insert(
-        image: .stub(),
-        sourceDisplay: "main",
-        selectionRect: CGRect(x: 10, y: 20, width: 30, height: 40)
-    )
+    let id = store.insert(image: .stub(), sourceDisplay: "main", selectionRect: .zero)
+
+    store.markDropped(id: id)
 
     let record = try #require(store.activeRecords.first)
     #expect(record.id == id)
-    #expect(record.status == .pending)
-    #expect(record.expiresAt == now.addingTimeInterval(300))
+    #expect(record.status == .dropped)
 }
 
-@Test func test_delete_removesExistingRecordImmediately() {
-    let store = ScreenshotStore(now: Date.init)
+@Test func test_expireRemovesRecordsOlderThanFiveMinutes() {
+    var currentDate = Date(timeIntervalSince1970: 1_000)
+    let store = ScreenshotStore(now: { currentDate })
     let id = store.insert(image: .stub(), sourceDisplay: "main", selectionRect: .zero)
 
-    store.delete(id: id)
+    currentDate = currentDate.addingTimeInterval(301)
+    store.expire()
 
     #expect(store.activeRecords.isEmpty)
+    #expect(store.record(id: id) == nil)
 }
 
-@Test func test_activeRecords_withTiedCreatedAtKeepsInsertionOrder() {
-    let now = Date(timeIntervalSince1970: 1_000)
-    let store = ScreenshotStore(now: { now })
+@Test func test_markDragging_pausesExpiryUntilDragEnds() throws {
+    var currentDate = Date(timeIntervalSince1970: 1_000)
+    let store = ScreenshotStore(now: { currentDate })
+    let id = store.insert(image: .stub(), sourceDisplay: "main", selectionRect: .zero)
 
-    let firstID = store.insert(image: .stub(), sourceDisplay: "main", selectionRect: .zero)
-    let secondID = store.insert(image: .stub(), sourceDisplay: "secondary", selectionRect: .zero)
+    store.markDragging(id: id)
+    currentDate = currentDate.addingTimeInterval(301)
+    store.expire()
+
+    let draggingRecord = try #require(store.record(id: id))
+    #expect(draggingRecord.status == .dragging)
+
+    store.markDropped(id: id)
+    store.expire()
+
+    #expect(store.record(id: id) == nil)
+}
+
+@Test func test_activeRecords_returnsNewestFirstAcrossStates() throws {
+    var currentDate = Date(timeIntervalSince1970: 1_000)
+    let store = ScreenshotStore(now: { currentDate })
+
+    let oldestID = store.insert(image: .stub(), sourceDisplay: "oldest", selectionRect: .zero)
+    currentDate = currentDate.addingTimeInterval(1)
+    let middleID = store.insert(image: .stub(), sourceDisplay: "middle", selectionRect: .zero)
+    store.markDragging(id: middleID)
+    currentDate = currentDate.addingTimeInterval(1)
+    let newestID = store.insert(image: .stub(), sourceDisplay: "newest", selectionRect: .zero)
+    store.markDropped(id: newestID)
 
     let records = store.activeRecords
 
-    #expect(records.count == 2)
-    #expect(records[0].id == firstID)
-    #expect(records[1].id == secondID)
+    #expect(records.map(\.id) == [newestID, middleID, oldestID])
+    #expect(records.map(\.status) == [.dropped, .dragging, .pending])
+}
+
+@Test func test_reconcileExpiry_removesExpiredRecordsAfterResume() {
+    var currentDate = Date(timeIntervalSince1970: 1_000)
+    let store = ScreenshotStore(now: { currentDate })
+    let id = store.insert(image: .stub(), sourceDisplay: "main", selectionRect: .zero)
+
+    currentDate = currentDate.addingTimeInterval(301)
+    store.reconcileExpiry()
+
+    #expect(store.record(id: id) == nil)
+}
+
+@Test func test_changePublication_notifiesOnStoreMutations() {
+    let store = ScreenshotStore(now: Date.init)
+    var changes = 0
+    store.onChange = {
+        changes += 1
+    }
+
+    let id = store.insert(image: .stub(), sourceDisplay: "main", selectionRect: .zero)
+    store.markDropped(id: id)
+    store.delete(id: id)
+
+    #expect(changes == 3)
 }

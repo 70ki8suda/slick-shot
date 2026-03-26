@@ -3,6 +3,8 @@ import CoreGraphics
 
 public enum ScreenshotStatus: Equatable {
     case pending
+    case dragging
+    case dropped
 }
 
 public struct ScreenshotRecord: Identifiable, Equatable {
