@@ -50,7 +50,11 @@ public final class ScreenshotStore {
     }
 
     public func markDragging(id: UUID) {
-        guard let entry = records[id], entry.record.status != .dragging else {
+        guard let entry = records[id], entry.record.status == .pending else {
+            return
+        }
+
+        if removeExpiredRecordIfNeeded(id: id, entry: entry) {
             return
         }
 
@@ -109,11 +113,12 @@ public final class ScreenshotStore {
 
     public var activeRecords: [ScreenshotRecord] {
         records.values
+            .filter { $0.record.status != .dropped }
             .sorted {
                 if $0.record.createdAt != $1.record.createdAt {
                     return $0.record.createdAt > $1.record.createdAt
                 }
-                return $0.sequence < $1.sequence
+                return $0.sequence > $1.sequence
             }
             .map(\.record)
     }
@@ -147,5 +152,16 @@ public final class ScreenshotStore {
     private func notifyChange() {
         NotificationCenter.default.post(name: Self.didChangeNotification, object: self)
         onChange?()
+    }
+
+    private func removeExpiredRecordIfNeeded(id: UUID, entry: Entry) -> Bool {
+        guard entry.record.status != .dragging, now() >= entry.record.expiresAt else {
+            return false
+        }
+
+        records[id] = nil
+        pausedRetentionIntervals.removeValue(forKey: id)
+        notifyChange()
+        return true
     }
 }

@@ -16,9 +16,10 @@ private extension Data {
 
     store.markDropped(id: id)
 
-    let record = try #require(store.activeRecords.first)
+    let record = try #require(store.record(id: id))
     #expect(record.id == id)
     #expect(record.status == .dropped)
+    #expect(store.activeRecords.isEmpty)
 }
 
 @Test func test_expireRemovesRecordsOlderThanFiveMinutes() {
@@ -31,6 +32,18 @@ private extension Data {
 
     #expect(store.activeRecords.isEmpty)
     #expect(store.record(id: id) == nil)
+}
+
+@Test func test_expireRemovesRecordsAtFiveMinuteBoundary() {
+    var currentDate = Date(timeIntervalSince1970: 1_000)
+    let store = ScreenshotStore(now: { currentDate })
+    let id = store.insert(image: .stub(), sourceDisplay: "main", selectionRect: .zero)
+
+    currentDate = currentDate.addingTimeInterval(300)
+    store.expire()
+
+    #expect(store.record(id: id) == nil)
+    #expect(store.activeRecords.isEmpty)
 }
 
 @Test func test_markDragging_pausesExpiryUntilDragEnds() throws {
@@ -57,6 +70,30 @@ private extension Data {
     #expect(store.record(id: id) == nil)
 }
 
+@Test func test_markDragging_doesNotResurrectExpiredRecord() {
+    var currentDate = Date(timeIntervalSince1970: 1_000)
+    let store = ScreenshotStore(now: { currentDate })
+    let id = store.insert(image: .stub(), sourceDisplay: "main", selectionRect: .zero)
+
+    currentDate = currentDate.addingTimeInterval(301)
+    store.markDragging(id: id)
+
+    #expect(store.record(id: id) == nil)
+    #expect(store.activeRecords.isEmpty)
+}
+
+@Test func test_activeRecords_returnsNewestFirstForSameTimestamp() {
+    let now = Date(timeIntervalSince1970: 1_000)
+    let store = ScreenshotStore(now: { now })
+
+    let firstID = store.insert(image: .stub(), sourceDisplay: "first", selectionRect: .zero)
+    let secondID = store.insert(image: .stub(), sourceDisplay: "second", selectionRect: .zero)
+
+    let records = store.activeRecords
+
+    #expect(records.map(\.id) == [secondID, firstID])
+}
+
 @Test func test_activeRecords_returnsNewestFirstAcrossStates() throws {
     var currentDate = Date(timeIntervalSince1970: 1_000)
     let store = ScreenshotStore(now: { currentDate })
@@ -71,8 +108,9 @@ private extension Data {
 
     let records = store.activeRecords
 
-    #expect(records.map(\.id) == [newestID, middleID, oldestID])
-    #expect(records.map(\.status) == [.dropped, .dragging, .pending])
+    #expect(records.map(\.id) == [middleID, oldestID])
+    #expect(records.map(\.status) == [.dragging, .pending])
+    #expect(store.record(id: newestID)?.status == .dropped)
 }
 
 @Test func test_reconcileExpiry_removesExpiredRecordsAfterResume() {
