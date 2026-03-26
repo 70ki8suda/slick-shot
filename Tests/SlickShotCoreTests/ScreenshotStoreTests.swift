@@ -32,3 +32,17 @@ private extension Data {
 
     #expect(store.activeRecords.isEmpty)
 }
+
+@Test func test_activeRecords_withTiedCreatedAtKeepsInsertionOrder() {
+    let now = Date(timeIntervalSince1970: 1_000)
+    let store = ScreenshotStore(now: { now })
+
+    let firstID = store.insert(image: .stub(), sourceDisplay: "main", selectionRect: .zero)
+    let secondID = store.insert(image: .stub(), sourceDisplay: "secondary", selectionRect: .zero)
+
+    let records = store.activeRecords
+
+    #expect(records.count == 2)
+    #expect(records[0].id == firstID)
+    #expect(records[1].id == secondID)
+}

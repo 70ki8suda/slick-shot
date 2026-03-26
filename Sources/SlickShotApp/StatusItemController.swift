@@ -2,7 +2,7 @@ import AppKit
 
 @MainActor
 final class StatusItemController: NSObject {
-    private let statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
+    private let statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
 
     func install() {
         guard let button = statusItem.button else { return }

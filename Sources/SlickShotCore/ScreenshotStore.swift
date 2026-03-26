@@ -3,7 +3,13 @@ import CoreGraphics
 
 public final class ScreenshotStore {
     private let now: () -> Date
-    private var records: [UUID: ScreenshotRecord] = [:]
+    private var nextSequence: Int = 0
+    private var records: [UUID: Entry] = [:]
+
+    private struct Entry {
+        let sequence: Int
+        let record: ScreenshotRecord
+    }
 
     public init(now: @escaping () -> Date = Date.init) {
         self.now = now
@@ -23,7 +29,8 @@ public final class ScreenshotStore {
             sourceDisplay: sourceDisplay,
             selectionRect: selectionRect
         )
-        records[id] = record
+        records[id] = Entry(sequence: nextSequence, record: record)
+        nextSequence += 1
         return id
     }
 
@@ -32,7 +39,14 @@ public final class ScreenshotStore {
     }
 
     public var activeRecords: [ScreenshotRecord] {
-        records.values.sorted { $0.createdAt > $1.createdAt }
+        records.values
+            .sorted {
+                if $0.record.createdAt != $1.record.createdAt {
+                    return $0.record.createdAt > $1.record.createdAt
+                }
+                return $0.sequence < $1.sequence
+            }
+            .map(\.record)
     }
 
     public func list() -> [ScreenshotRecord] {
