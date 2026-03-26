@@ -21,7 +21,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let settingsWindowController = SettingsWindowController(
             shortcutDisplayProvider: { hotkeyConfiguration.displayString },
             permissionStatusProvider: {
-                captureService.hasScreenRecordingPermission() ? "Granted" : "Missing"
+                captureService.hasScreenRecordingPermission() ? "Granted" : "Missing Screen Recording access"
             }
         )
         self.settingsWindowController = settingsWindowController
