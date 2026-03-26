@@ -8,6 +8,8 @@ final class CaptureOverlayView: NSView {
 
     private var startPoint: CGPoint?
     private var currentPoint: CGPoint?
+    private var displayedReticleRect: CGRect?
+    private var pendingReticleUpdate: DispatchWorkItem?
     private let lagFrameLayer = CAShapeLayer()
     private let lagCornerLayer = CAShapeLayer()
     private let lagGlowLayer = CAShapeLayer()
@@ -43,7 +45,7 @@ final class CaptureOverlayView: NSView {
         NSColor(calibratedRed: 0.48, green: 0.95, blue: 1, alpha: 0.92).setStroke()
         framePath.stroke()
 
-        let cornerPath = Self.cornerAccentPath(in: selectionRect, length: 16)
+        let cornerPath = Self.crosshairAccentPath(in: selectionRect, length: 18, gap: 7)
         cornerPath.lineWidth = 2.4
         NSColor.white.withAlphaComponent(0.86).setStroke()
         cornerPath.stroke()
@@ -53,13 +55,15 @@ final class CaptureOverlayView: NSView {
         let point = convert(event.locationInWindow, from: nil)
         startPoint = point
         currentPoint = point
+        pendingReticleUpdate?.cancel()
+        displayedReticleRect = selectionRect
         updateReticleLayers(animated: false)
         needsDisplay = true
     }
 
     override func mouseDragged(with event: NSEvent) {
         currentPoint = convert(event.locationInWindow, from: nil)
-        updateReticleLayers(animated: true)
+        scheduleReticleUpdate()
         needsDisplay = true
     }
 
@@ -68,6 +72,8 @@ final class CaptureOverlayView: NSView {
         defer {
             startPoint = nil
             currentPoint = nil
+            pendingReticleUpdate?.cancel()
+            displayedReticleRect = nil
             updateReticleLayers(animated: false)
             needsDisplay = true
         }
@@ -146,7 +152,7 @@ final class CaptureOverlayView: NSView {
     }
 
     private func updateReticleLayers(animated: Bool) {
-        guard let selectionRect else {
+        guard let displayedReticleRect else {
             CATransaction.begin()
             CATransaction.setDisableActions(true)
             lagGlowLayer.opacity = 0
@@ -159,13 +165,13 @@ final class CaptureOverlayView: NSView {
             return
         }
 
-        let outerRect = selectionRect.insetBy(dx: -12, dy: -12)
+        let outerRect = displayedReticleRect.insetBy(dx: -12, dy: -12)
         let framePath = NSBezierPath(rect: outerRect).cgPath
-        let cornerPath = Self.cornerAccentPath(in: outerRect, length: 22).cgPath
+        let cornerPath = Self.crosshairAccentPath(in: outerRect, length: 20, gap: 10).cgPath
 
         CATransaction.begin()
         if animated {
-            CATransaction.setAnimationDuration(0.16)
+            CATransaction.setAnimationDuration(0.2)
             CATransaction.setAnimationTimingFunction(reticleTiming)
         } else {
             CATransaction.setDisableActions(true)
@@ -177,6 +183,23 @@ final class CaptureOverlayView: NSView {
         lagFrameLayer.path = framePath
         lagCornerLayer.path = cornerPath
         CATransaction.commit()
+    }
+
+    private func scheduleReticleUpdate() {
+        pendingReticleUpdate?.cancel()
+        guard let selectionRect else {
+            displayedReticleRect = nil
+            updateReticleLayers(animated: false)
+            return
+        }
+
+        let workItem = DispatchWorkItem { [weak self] in
+            guard let self else { return }
+            self.displayedReticleRect = selectionRect
+            self.updateReticleLayers(animated: true)
+        }
+        pendingReticleUpdate = workItem
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.075, execute: workItem)
     }
 
     nonisolated static func dimmingRects(in bounds: CGRect, excluding selectionRect: CGRect?) -> [CGRect] {
@@ -226,24 +249,37 @@ final class CaptureOverlayView: NSView {
         path.stroke()
     }
 
-    private static func cornerAccentPath(in rect: CGRect, length: CGFloat) -> NSBezierPath {
+    private static func crosshairAccentPath(in rect: CGRect, length: CGFloat, gap: CGFloat) -> NSBezierPath {
         let path = NSBezierPath()
+        let halfGap = gap / 2
 
-        path.move(to: CGPoint(x: rect.minX, y: rect.maxY - length))
-        path.line(to: CGPoint(x: rect.minX, y: rect.maxY))
-        path.line(to: CGPoint(x: rect.minX + length, y: rect.maxY))
+        func drawCrosshair(center: CGPoint, horizontalDirection: CGFloat, verticalDirection: CGFloat) {
+            path.move(to: CGPoint(x: center.x - (horizontalDirection * halfGap), y: center.y))
+            path.line(to: CGPoint(x: center.x - (horizontalDirection * (halfGap + length)), y: center.y))
+            path.move(to: CGPoint(x: center.x, y: center.y - (verticalDirection * halfGap)))
+            path.line(to: CGPoint(x: center.x, y: center.y - (verticalDirection * (halfGap + length))))
+        }
 
-        path.move(to: CGPoint(x: rect.maxX - length, y: rect.maxY))
-        path.line(to: CGPoint(x: rect.maxX, y: rect.maxY))
-        path.line(to: CGPoint(x: rect.maxX, y: rect.maxY - length))
-
-        path.move(to: CGPoint(x: rect.maxX, y: rect.minY + length))
-        path.line(to: CGPoint(x: rect.maxX, y: rect.minY))
-        path.line(to: CGPoint(x: rect.maxX - length, y: rect.minY))
-
-        path.move(to: CGPoint(x: rect.minX + length, y: rect.minY))
-        path.line(to: CGPoint(x: rect.minX, y: rect.minY))
-        path.line(to: CGPoint(x: rect.minX, y: rect.minY + length))
+        drawCrosshair(
+            center: CGPoint(x: rect.minX, y: rect.maxY),
+            horizontalDirection: -1,
+            verticalDirection: 1
+        )
+        drawCrosshair(
+            center: CGPoint(x: rect.maxX, y: rect.maxY),
+            horizontalDirection: 1,
+            verticalDirection: 1
+        )
+        drawCrosshair(
+            center: CGPoint(x: rect.maxX, y: rect.minY),
+            horizontalDirection: 1,
+            verticalDirection: -1
+        )
+        drawCrosshair(
+            center: CGPoint(x: rect.minX, y: rect.minY),
+            horizontalDirection: -1,
+            verticalDirection: -1
+        )
 
         return path
     }
