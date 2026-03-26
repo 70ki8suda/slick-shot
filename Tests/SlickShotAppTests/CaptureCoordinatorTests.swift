@@ -93,7 +93,7 @@ import Testing
 }
 
 @MainActor
-@Test func test_captureFailureAfterPermissionGranted_doesNotShowPermissionsWindow() throws {
+@Test func test_captureFailureAfterPermissionGranted_reportsFailureWithoutShowingPermissionsWindow() throws {
     let store = ScreenshotStore(now: { Date(timeIntervalSince1970: 1_000) })
     let overlayFactory = TestCaptureOverlaySessionFactory()
     let captureService = TestScreenCaptureService(
@@ -105,11 +105,15 @@ import Testing
         error: TestScreenCaptureError.captureFailed
     )
     let settingsWindowController = TestSettingsWindowController()
+    var reportedFailures: [String] = []
     let coordinator = CaptureCoordinator(
         store: store,
         captureService: captureService,
         overlayFactory: overlayFactory,
-        settingsWindowController: settingsWindowController
+        settingsWindowController: settingsWindowController,
+        onCaptureFailure: { error in
+            reportedFailures.append(String(describing: error))
+        }
     )
 
     coordinator.startCapture()
@@ -121,6 +125,7 @@ import Testing
     #expect(captureService.capturedRects == [CGRect(x: 10, y: 20, width: 30, height: 40)])
     #expect(settingsWindowController.showMissingPermissionMessageCallCount == 0)
     #expect(overlayFactory.session?.endCallCount == 1)
+    #expect(reportedFailures == ["captureFailed"])
 }
 
 @Test func test_overlayDimmingRects_excludeSelectionArea() {
