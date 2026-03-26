@@ -13,6 +13,10 @@ final class ScreenCaptureService: ScreenCaptureServiceProtocol {
         CGPreflightScreenCaptureAccess()
     }
 
+    func requestScreenRecordingPermission() -> Bool {
+        CGRequestScreenCaptureAccess()
+    }
+
     func captureImage(in rect: CGRect) async throws -> ScreenCapturePayload {
         let selectionRect = rect.standardized.integral
         let cgImage = try await captureCGImage(in: selectionRect)

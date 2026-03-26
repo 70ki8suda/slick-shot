@@ -10,6 +10,7 @@ struct ScreenCapturePayload: Equatable {
 @MainActor
 protocol ScreenCaptureServiceProtocol {
     func hasScreenRecordingPermission() -> Bool
+    func requestScreenRecordingPermission() -> Bool
     func captureImage(in rect: CGRect) async throws -> ScreenCapturePayload
 }
 
@@ -61,6 +62,13 @@ final class CaptureCoordinator {
     func startCapture() {
         guard activeSession == nil else {
             return
+        }
+
+        if !captureService.hasScreenRecordingPermission() {
+            guard captureService.requestScreenRecordingPermission() else {
+                settingsWindowController.showMissingPermissionMessage()
+                return
+            }
         }
 
         guard captureService.hasScreenRecordingPermission() else {

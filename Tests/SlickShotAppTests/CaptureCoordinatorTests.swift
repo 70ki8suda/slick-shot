@@ -101,6 +101,33 @@ import Testing
 }
 
 @MainActor
+@Test func test_missingPermission_requestsAccessBeforeShowingSettingsWindow() {
+    let store = ScreenshotStore(now: { Date(timeIntervalSince1970: 1_000) })
+    let overlayFactory = TestCaptureOverlaySessionFactory()
+    let captureService = TestScreenCaptureService(
+        hasPermission: false,
+        requestPermissionResult: false,
+        result: .success(ScreenCapturePayload(
+            imageData: Data([0x01]),
+            sourceDisplay: "Display 1"
+        ))
+    )
+    let settingsWindowController = TestSettingsWindowController()
+    let coordinator = CaptureCoordinator(
+        store: store,
+        captureService: captureService,
+        overlayFactory: overlayFactory,
+        settingsWindowController: settingsWindowController
+    )
+
+    coordinator.startCapture()
+
+    #expect(captureService.requestPermissionCallCount == 1)
+    #expect(overlayFactory.makeSessionCallCount == 0)
+    #expect(settingsWindowController.showMissingPermissionMessageCallCount == 1)
+}
+
+@MainActor
 @Test func test_captureFailureAfterPermissionGranted_reportsFailureWithoutShowingPermissionsWindow() async throws {
     let store = ScreenshotStore(now: { Date(timeIntervalSince1970: 1_000) })
     let overlayFactory = TestCaptureOverlaySessionFactory()
@@ -205,25 +232,34 @@ private final class TestCaptureOverlaySession: CaptureOverlaySession {
 @MainActor
 private final class TestScreenCaptureService: ScreenCaptureServiceProtocol {
     private let hasPermission: Bool
+    private let requestPermissionResult: Bool
     private let result: Result<ScreenCapturePayload, Error>
     private let suspendCapture: Bool
     private var continuation: CheckedContinuation<Void, Never>?
     private var isResumed = false
 
     private(set) var capturedRects: [CGRect] = []
+    private(set) var requestPermissionCallCount = 0
 
     init(
         hasPermission: Bool,
+        requestPermissionResult: Bool = false,
         result: Result<ScreenCapturePayload, Error>,
         suspendCapture: Bool = false
     ) {
         self.hasPermission = hasPermission
+        self.requestPermissionResult = requestPermissionResult
         self.result = result
         self.suspendCapture = suspendCapture
     }
 
     func hasScreenRecordingPermission() -> Bool {
         hasPermission
+    }
+
+    func requestScreenRecordingPermission() -> Bool {
+        requestPermissionCallCount += 1
+        return requestPermissionResult
     }
 
     func captureImage(in rect: CGRect) async throws -> ScreenCapturePayload {
