@@ -83,14 +83,6 @@ final class CaptureCoordinator {
             return
         }
 
-        if captureService.captureFlow == .overlayRectSelection, captureService.hasScreenRecordingPermission() == false {
-            let granted = captureService.requestScreenRecordingPermission()
-            if granted == false {
-                settingsWindowController.showMissingPermissionMessage()
-            }
-            return
-        }
-
         if captureService.captureFlow == .nativeInteractiveSelection {
             interactiveCaptureTask = Task { [weak self] in
                 await self?.captureInteractively()
