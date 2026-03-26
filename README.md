@@ -4,7 +4,7 @@ SlickShot is a macOS menu bar utility for transient screenshots.
 
 The capture backend uses ScreenCaptureKit screenshot APIs while preserving the existing region-selection and permission flow.
 
-## Current feature set
+## What It Does
 
 - Capture a selected screen region from the menu bar or the global hotkey.
 - Keep new captures in a temporary thumbnail stack instead of writing to the Desktop.
@@ -13,16 +13,59 @@ The capture backend uses ScreenCaptureKit screenshot APIs while preserving the e
 - Show the current shortcut and Screen Recording permission state in the settings window.
 - Prompt for a shortcut on first launch when no valid saved hotkey exists.
 
-## Run locally
+## Install
 
-SlickShot is currently developed and run as a Swift Package executable:
+Install a Raycast-launchable app bundle into `~/Applications`:
+
+```bash
+./Scripts/install-app.sh
+```
+
+This creates `~/Applications/SlickShot.app`.
+
+After that you can:
+
+- launch `SlickShot` from Raycast
+- launch it directly from Finder or Spotlight
+- use the global shortcut after first-launch onboarding
+
+## First Launch
+
+On first launch, SlickShot opens its settings window in onboarding mode when no valid shortcut is saved.
+
+1. Click the shortcut recorder.
+2. Press the key combination you want to use.
+3. Save it implicitly by finishing the recording.
+4. Trigger `Capture Screenshot` once to prompt for Screen Recording permission if needed.
+
+If macOS blocks capture, SlickShot opens the settings window and links to `Privacy & Security > Screen Recording`.
+
+## Development
+
+Run the app directly from the package during development:
 
 ```bash
 swift run SlickShotApp
 ```
 
-To install a Raycast-launchable app bundle into `~/Applications`:
+Run tests:
 
+```bash
+swift test
+```
+
+## Hotkey
+
+The default global shortcut is `Control-Option-Command-S`.
+
+SlickShot stores the configured shortcut in `UserDefaults` and falls back to the default when the saved values are missing or invalid.
+
+## Current Limitations
+
+- The app is currently unsigned with ad-hoc signing for local development and testing.
+- Screen Recording permission still needs to be granted manually in macOS.
+- Drag-and-drop behavior has automated coverage for temp-file lifecycle, but target-app acceptance is still best verified manually in apps like Slack.
+- The current bundle installer is local-only and does not produce a notarized release artifact.
 ```bash
 ./Scripts/install-app.sh
 ```

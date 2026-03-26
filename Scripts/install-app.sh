@@ -10,6 +10,8 @@ CONTENTS_DIR="$APP_DIR/Contents"
 MACOS_DIR="$CONTENTS_DIR/MacOS"
 RESOURCES_DIR="$CONTENTS_DIR/Resources"
 EXECUTABLE_PATH="$PRODUCT_DIR/SlickShotApp"
+ICONSET_DIR="$ROOT_DIR/Resources/AppIcon.iconset"
+ICON_FILE="$RESOURCES_DIR/AppIcon.icns"
 
 mkdir -p "$HOME/Applications"
 
@@ -22,6 +24,7 @@ rm -rf "$APP_DIR"
 mkdir -p "$MACOS_DIR" "$RESOURCES_DIR"
 
 cp "$EXECUTABLE_PATH" "$MACOS_DIR/SlickShot"
+/usr/bin/iconutil -c icns "$ICONSET_DIR" -o "$ICON_FILE"
 
 cat > "$CONTENTS_DIR/Info.plist" <<'PLIST'
 <?xml version="1.0" encoding="UTF-8"?>
@@ -38,6 +41,8 @@ cat > "$CONTENTS_DIR/Info.plist" <<'PLIST'
   <string>com.yasudanaoki.SlickShot</string>
   <key>CFBundleInfoDictionaryVersion</key>
   <string>6.0</string>
+  <key>CFBundleIconFile</key>
+  <string>AppIcon</string>
   <key>CFBundleName</key>
   <string>SlickShot</string>
   <key>CFBundlePackageType</key>

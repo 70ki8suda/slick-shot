@@ -7,4 +7,5 @@ enum AppBundleMetadata {
     static let bundleVersion = "1"
     static let shortVersionString = "0.1.0"
     static let bundlePackageType = "APPL"
+    static let iconFileName = "AppIcon"
 }
