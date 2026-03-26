@@ -26,8 +26,25 @@
 - [ ] **Step 1: Write the failing store tests**
 
 ```swift
-func test_insert_creates_pending_record_with_expiry() { ... }
-func test_delete_removes_record() { ... }
+func test_insert_createsPendingRecordWithFiveMinuteExpiry() {
+  let now = Date(timeIntervalSince1970: 1_000)
+  let store = ScreenshotStore(now: { now })
+  let id = store.insert(image: .stub(), sourceDisplay: "main", selectionRect: CGRect(x: 10, y: 20, width: 30, height: 40))
+
+  let record = try XCTUnwrap(store.activeRecords.first)
+  XCTAssertEqual(record.id, id)
+  XCTAssertEqual(record.status, .pending)
+  XCTAssertEqual(record.expiresAt, now.addingTimeInterval(300))
+}
+
+func test_delete_removesExistingRecordImmediately() {
+  let store = ScreenshotStore(now: Date.init)
+  let id = store.insert(image: .stub(), sourceDisplay: "main", selectionRect: .zero)
+
+  store.delete(id: id)
+
+  XCTAssertTrue(store.activeRecords.isEmpty)
+}
 ```
 
 - [ ] **Step 2: Run test to verify it fails**
@@ -48,7 +65,7 @@ Expected: PASS
 
 Create a menu bar app with:
 - a status item
-- a `Capture Screenshot` menu action placeholder
+- a `Capture Screenshot` menu action stub that is intentionally a no-op in this chunk and becomes functional in Task 4
 - a `Quit SlickShot` menu action
 
 - [ ] **Step 6: Verify the prototype launches**
@@ -73,11 +90,11 @@ git commit -m "feat: bootstrap SlickShot menu bar prototype"
 - [ ] **Step 1: Write failing tests for lifecycle transitions**
 
 ```swift
-func test_markDropped_transitions_record() { ... }
-func test_expireRemovesOldRecordsAfterRetention() { ... }
+func test_markDropped_transitionsPendingRecordToDropped() { ... }
+func test_expireRemovesRecordsOlderThanFiveMinutes() { ... }
 func test_markDragging_pausesExpiryUntilDragEnds() { ... }
-func test_activeRecords_returns_newest_first() { ... }
-func test_reconcileExpiry_removesExpiredRecordsAfterResume() { ... }
+func test_activeRecords_returnsNewestFirstAcrossPendingStates() { ... }
+func test_reconcileExpiryOnAppDidBecomeActive_removesExpiredRecordsAfterResume() { ... }
 ```
 
 - [ ] **Step 2: Run test to verify it fails**
@@ -89,10 +106,10 @@ Expected: FAIL because lifecycle and ordered active-record behavior are missing
 
 Add:
 - `ScreenshotStatus`
-- retention expiry
+- 5-minute retention expiry
 - ordered active record listing
 - `markDragging` transition and timer pause/resume behavior
-- timestamp-based expiry reconciliation for app resume/background return
+- timestamp-based expiry reconciliation invoked on app resume/background return via `applicationDidBecomeActive`
 - drop/delete transitions
 - store change publication so AppKit overlay controllers can observe updates without owning lifecycle logic
 
@@ -114,23 +131,23 @@ git commit -m "feat: add screenshot lifecycle store"
 
 **Files:**
 - Create: `Sources/SlickShotApp/ThumbnailOverlayController.swift`
+- Create: `Sources/SlickShotApp/ThumbnailStackPresenter.swift`
 - Create: `Sources/SlickShotApp/ThumbnailStackView.swift`
 - Create: `Sources/SlickShotApp/ThumbnailItemView.swift`
 - Modify: `Sources/SlickShotApp/AppDelegate.swift`
-- Modify: `Sources/SlickShotCore/ScreenshotStore.swift`
-- Modify: `Tests/SlickShotCoreTests/ScreenshotStoreTests.swift`
+- Create: `Tests/SlickShotAppTests/ThumbnailStackPresenterTests.swift`
 
 - [ ] **Step 1: Write failing tests for presentation ordering**
 
 ```swift
-func test_overlayItems_orders_newest_first() { ... }
-func test_overlayItems_caps_background_items_at_three_total() { ... }
+func test_presenter_ordersNewestActiveRecordsFirst() { ... }
+func test_presenter_capsVisibleItemsAtThree() { ... }
 ```
 
 - [ ] **Step 2: Run test to verify it fails**
 
 Run: `swift test --filter ScreenshotStoreTests`
-Expected: FAIL until overlay-facing ordering behavior is finalized
+Expected: FAIL until overlay-facing presentation behavior is implemented in `ThumbnailStackPresenter`
 
 - [ ] **Step 3: Implement bottom-right overlay UI**
 
@@ -184,6 +201,7 @@ Build:
 - capture selected rect into `NSImage`
 - insertion into `ScreenshotStore`
 - permission gating that routes missing permissions into the settings/status window instead of attempting capture
+- settings/status copy that explicitly says `Screen Recording access is required for SlickShot to capture screenshots.` and opens the macOS `Privacy & Security > Screen Recording` pane
 
 - [ ] **Step 4: Verify manual capture works**
 
