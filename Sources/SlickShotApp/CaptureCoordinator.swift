@@ -92,7 +92,7 @@ final class CaptureCoordinator {
                 selectionRect: selectionRect
             )
         } catch {
-            settingsWindowController.showMissingPermissionMessage()
+            return
         }
     }
 

@@ -92,6 +92,37 @@ import Testing
     #expect(settingsWindowController.showMissingPermissionMessageCallCount == 1)
 }
 
+@MainActor
+@Test func test_captureFailureAfterPermissionGranted_doesNotShowPermissionsWindow() throws {
+    let store = ScreenshotStore(now: { Date(timeIntervalSince1970: 1_000) })
+    let overlayFactory = TestCaptureOverlaySessionFactory()
+    let captureService = TestScreenCaptureService(
+        hasPermission: true,
+        payload: ScreenCapturePayload(
+            imageData: Data([0x01]),
+            sourceDisplay: "Display 1"
+        ),
+        error: TestScreenCaptureError.captureFailed
+    )
+    let settingsWindowController = TestSettingsWindowController()
+    let coordinator = CaptureCoordinator(
+        store: store,
+        captureService: captureService,
+        overlayFactory: overlayFactory,
+        settingsWindowController: settingsWindowController
+    )
+
+    coordinator.startCapture()
+    let session = try #require(overlayFactory.session)
+
+    session.simulateSelection(CGRect(x: 10, y: 20, width: 30, height: 40))
+
+    #expect(store.activeRecords.isEmpty)
+    #expect(captureService.capturedRects == [CGRect(x: 10, y: 20, width: 30, height: 40)])
+    #expect(settingsWindowController.showMissingPermissionMessageCallCount == 0)
+    #expect(overlayFactory.session?.endCallCount == 1)
+}
+
 @Test func test_overlayDimmingRects_excludeSelectionArea() {
     let bounds = CGRect(x: 0, y: 0, width: 100, height: 100)
     let selection = CGRect(x: 20, y: 30, width: 40, height: 20)
@@ -159,12 +190,14 @@ private final class TestCaptureOverlaySession: CaptureOverlaySession {
 private final class TestScreenCaptureService: ScreenCaptureServiceProtocol {
     private let hasPermission: Bool
     private let payload: ScreenCapturePayload
+    private let error: Error?
 
     private(set) var capturedRects: [CGRect] = []
 
-    init(hasPermission: Bool, payload: ScreenCapturePayload) {
+    init(hasPermission: Bool, payload: ScreenCapturePayload, error: Error? = nil) {
         self.hasPermission = hasPermission
         self.payload = payload
+        self.error = error
     }
 
     func hasScreenRecordingPermission() -> Bool {
@@ -173,8 +206,15 @@ private final class TestScreenCaptureService: ScreenCaptureServiceProtocol {
 
     func captureImage(in rect: CGRect) throws -> ScreenCapturePayload {
         capturedRects.append(rect)
+        if let error {
+            throw error
+        }
         return payload
     }
+}
+
+private enum TestScreenCaptureError: Error {
+    case captureFailed
 }
 
 @MainActor
