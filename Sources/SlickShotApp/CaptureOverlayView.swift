@@ -8,6 +8,19 @@ final class CaptureOverlayView: NSView {
 
     private var startPoint: CGPoint?
     private var currentPoint: CGPoint?
+    private let lagFrameLayer = CAShapeLayer()
+    private let lagCornerLayer = CAShapeLayer()
+    private let lagGlowLayer = CAShapeLayer()
+
+    override init(frame frameRect: NSRect) {
+        super.init(frame: frameRect)
+        wantsLayer = true
+        configureReticleLayers()
+    }
+
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
 
     override var acceptsFirstResponder: Bool {
         true
@@ -39,11 +52,13 @@ final class CaptureOverlayView: NSView {
         let point = convert(event.locationInWindow, from: nil)
         startPoint = point
         currentPoint = point
+        updateReticleLayers(animated: false)
         needsDisplay = true
     }
 
     override func mouseDragged(with event: NSEvent) {
         currentPoint = convert(event.locationInWindow, from: nil)
+        updateReticleLayers(animated: true)
         needsDisplay = true
     }
 
@@ -52,6 +67,7 @@ final class CaptureOverlayView: NSView {
         defer {
             startPoint = nil
             currentPoint = nil
+            updateReticleLayers(animated: false)
             needsDisplay = true
         }
 
@@ -99,6 +115,67 @@ final class CaptureOverlayView: NSView {
             width: rect.width,
             height: rect.height
         ).integral
+    }
+
+    private func configureReticleLayers() {
+        lagGlowLayer.fillColor = NSColor.clear.cgColor
+        lagGlowLayer.strokeColor = NSColor(calibratedRed: 0.3, green: 0.84, blue: 1, alpha: 0.28).cgColor
+        lagGlowLayer.lineWidth = 1.6
+        lagGlowLayer.shadowColor = NSColor(calibratedRed: 0.34, green: 0.88, blue: 1, alpha: 0.72).cgColor
+        lagGlowLayer.shadowOpacity = 0.46
+        lagGlowLayer.shadowRadius = 12
+        lagGlowLayer.shadowOffset = .zero
+        lagGlowLayer.opacity = 0
+
+        lagFrameLayer.fillColor = NSColor.clear.cgColor
+        lagFrameLayer.strokeColor = NSColor(calibratedRed: 0.44, green: 0.92, blue: 1, alpha: 0.88).cgColor
+        lagFrameLayer.lineWidth = 1
+        lagFrameLayer.lineDashPattern = [12, 10]
+        lagFrameLayer.opacity = 0
+
+        lagCornerLayer.fillColor = NSColor.clear.cgColor
+        lagCornerLayer.strokeColor = NSColor.white.withAlphaComponent(0.94).cgColor
+        lagCornerLayer.lineWidth = 1.8
+        lagCornerLayer.lineCap = .round
+        lagCornerLayer.opacity = 0
+
+        layer?.addSublayer(lagGlowLayer)
+        layer?.addSublayer(lagFrameLayer)
+        layer?.addSublayer(lagCornerLayer)
+    }
+
+    private func updateReticleLayers(animated: Bool) {
+        guard let selectionRect else {
+            CATransaction.begin()
+            CATransaction.setDisableActions(true)
+            lagGlowLayer.opacity = 0
+            lagFrameLayer.opacity = 0
+            lagCornerLayer.opacity = 0
+            lagGlowLayer.path = nil
+            lagFrameLayer.path = nil
+            lagCornerLayer.path = nil
+            CATransaction.commit()
+            return
+        }
+
+        let outerRect = selectionRect.insetBy(dx: -12, dy: -12)
+        let framePath = NSBezierPath(rect: outerRect).cgPath
+        let cornerPath = Self.cornerAccentPath(in: outerRect, length: 22).cgPath
+
+        CATransaction.begin()
+        if animated {
+            CATransaction.setAnimationDuration(0.1)
+            CATransaction.setAnimationTimingFunction(CAMediaTimingFunction(name: .easeOut))
+        } else {
+            CATransaction.setDisableActions(true)
+        }
+        lagGlowLayer.opacity = 1
+        lagFrameLayer.opacity = 1
+        lagCornerLayer.opacity = 1
+        lagGlowLayer.path = framePath
+        lagFrameLayer.path = framePath
+        lagCornerLayer.path = cornerPath
+        CATransaction.commit()
     }
 
     nonisolated static func dimmingRects(in bounds: CGRect, excluding selectionRect: CGRect?) -> [CGRect] {
