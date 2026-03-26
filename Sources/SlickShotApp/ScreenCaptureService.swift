@@ -1,10 +1,10 @@
 import AppKit
 import CoreGraphics
-import Foundation
+@preconcurrency import ScreenCaptureKit
 
 enum ScreenCaptureServiceError: Error {
+    case failedToCreateImage
     case failedToEncodeImage
-    case failedToRunNativeCapture
 }
 
 protocol ScreenCaptureScreen {
@@ -12,10 +12,12 @@ protocol ScreenCaptureScreen {
 }
 
 extension NSScreen: ScreenCaptureScreen {}
+extension SCDisplay: ScreenCaptureScreen {}
 
-struct NativeCaptureRequest: Equatable {
+struct DisplayCaptureRequest: Equatable {
     let displayIndex: Int
-    let rect: CGRect
+    let globalRect: CGRect
+    let localRect: CGRect
 }
 
 @MainActor
@@ -38,86 +40,152 @@ final class ScreenCaptureService: ScreenCaptureServiceProtocol {
 
     func captureImage(in rect: CGRect) async throws -> ScreenCapturePayload {
         let selectionRect = rect.standardized.integral
-        guard let request = Self.captureRequest(for: selectionRect, screens: NSScreen.screens) else {
-            throw ScreenCaptureServiceError.failedToRunNativeCapture
-        }
-        let outputURL = FileManager.default.temporaryDirectory
-            .appendingPathComponent(UUID().uuidString)
-            .appendingPathExtension("png")
-
-        defer {
-            try? FileManager.default.removeItem(at: outputURL)
+        let shareableContent = try await SCShareableContent.excludingDesktopWindows(
+            false,
+            onScreenWindowsOnly: true
+        )
+        let requests = Self.captureRequests(for: selectionRect, screens: shareableContent.displays)
+        guard !requests.isEmpty else {
+            throw ScreenCaptureServiceError.failedToCreateImage
         }
 
-        let result = try await Self.runNativeCapture(request: request, outputURL: outputURL)
-        guard result.terminationStatus == 0 else {
-            throw ScreenCaptureServiceError.failedToRunNativeCapture
-        }
-
-        guard let pngData = try? Data(contentsOf: outputURL), pngData.isEmpty == false else {
+        let image = try await compositeImage(
+            from: requests,
+            displays: shareableContent.displays,
+            in: selectionRect
+        )
+        guard let pngData = Self.pngData(from: image) else {
             throw ScreenCaptureServiceError.failedToEncodeImage
         }
 
+        let sourceDisplay = requests.count == 1 ? "Display \(requests[0].displayIndex)" : "Multiple Displays"
         return ScreenCapturePayload(
             imageData: pngData,
-            sourceDisplay: "Display \(request.displayIndex)"
+            sourceDisplay: sourceDisplay
         )
     }
 
-    static func captureRequest(
+    static func captureRequests(
         for rect: CGRect,
         screens: [any ScreenCaptureScreen]
-    ) -> NativeCaptureRequest? {
-        let midpoint = CGPoint(x: rect.midX, y: rect.midY)
-        guard let index = screens.firstIndex(where: { $0.frame.contains(midpoint) }) else {
-            return nil
-        }
+    ) -> [DisplayCaptureRequest] {
+        let selectionRect = rect.standardized.integral
 
-        let screen = screens[index]
-        return NativeCaptureRequest(
-            displayIndex: index + 1,
-            rect: CGRect(
-                x: rect.minX - screen.frame.minX,
-                y: rect.minY - screen.frame.minY,
-                width: rect.width,
-                height: rect.height
-            ).integral
-        )
+        return screens.enumerated().compactMap { index, screen in
+            let intersection = screen.frame.intersection(selectionRect)
+            guard !intersection.isNull, !intersection.isEmpty else {
+                return nil
+            }
+
+            return DisplayCaptureRequest(
+                displayIndex: index + 1,
+                globalRect: intersection.integral,
+                localRect: CGRect(
+                    x: intersection.minX - screen.frame.minX,
+                    y: intersection.minY - screen.frame.minY,
+                    width: intersection.width,
+                    height: intersection.height
+                ).integral
+            )
+        }
     }
 
-    private static func runNativeCapture(request: NativeCaptureRequest, outputURL: URL) async throws -> NativeCaptureResult {
-        try await withCheckedThrowingContinuation { continuation in
-            let process = Process()
-            let stderrPipe = Pipe()
-
-            process.executableURL = URL(fileURLWithPath: "/usr/sbin/screencapture")
-            process.arguments = [
-                "-x",
-                "-D", "\(request.displayIndex)",
-                "-t", "png",
-                "-R", "\(Int(request.rect.minX)),\(Int(request.rect.minY)),\(Int(request.rect.width)),\(Int(request.rect.height))",
-                outputURL.path
-            ]
-            process.standardError = stderrPipe
-            process.terminationHandler = { process in
-                let stderrData = stderrPipe.fileHandleForReading.readDataToEndOfFile()
-                let stderr = String(data: stderrData, encoding: .utf8) ?? ""
-                continuation.resume(returning: NativeCaptureResult(
-                    terminationStatus: process.terminationStatus,
-                    standardError: stderr
-                ))
-            }
-
-            do {
-                try process.run()
-            } catch {
-                continuation.resume(throwing: error)
-            }
+    private func compositeImage(
+        from requests: [DisplayCaptureRequest],
+        displays: [SCDisplay],
+        in selectionRect: CGRect
+    ) async throws -> CGImage {
+        let segments = try await captureSegments(from: requests, displays: displays, selectionRect: selectionRect)
+        let scale = segments.map(\.scale).max() ?? 1
+        let width = max(Int(selectionRect.width * scale), 1)
+        let height = max(Int(selectionRect.height * scale), 1)
+        guard
+            let context = CGContext(
+                data: nil,
+                width: width,
+                height: height,
+                bitsPerComponent: 8,
+                bytesPerRow: 0,
+                space: CGColorSpaceCreateDeviceRGB(),
+                bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
+            )
+        else {
+            throw ScreenCaptureServiceError.failedToCreateImage
         }
+
+        context.setFillColor(NSColor.clear.cgColor)
+        context.fill(CGRect(x: 0, y: 0, width: width, height: height))
+        context.interpolationQuality = .high
+
+        for segment in segments {
+            context.draw(
+                segment.image,
+                in: CGRect(
+                    x: segment.rectInSelection.minX * scale,
+                    y: segment.rectInSelection.minY * scale,
+                    width: segment.rectInSelection.width * scale,
+                    height: segment.rectInSelection.height * scale
+                )
+            )
+        }
+
+        guard let image = context.makeImage() else {
+            throw ScreenCaptureServiceError.failedToCreateImage
+        }
+
+        return image
+    }
+
+    private func captureSegments(
+        from requests: [DisplayCaptureRequest],
+        displays: [SCDisplay],
+        selectionRect: CGRect
+    ) async throws -> [CapturedDisplaySegment] {
+        var segments: [CapturedDisplaySegment] = []
+
+        for request in requests {
+            let display = displays[request.displayIndex - 1]
+            let filter = SCContentFilter(display: display, excludingWindows: [])
+            let scale = max(CGFloat(SCShareableContent.info(for: filter).pointPixelScale), 1)
+            let configuration = SCStreamConfiguration()
+            configuration.captureResolution = .best
+            configuration.showsCursor = false
+            configuration.sourceRect = request.localRect
+            configuration.width = max(Int(request.localRect.width * scale), 1)
+            configuration.height = max(Int(request.localRect.height * scale), 1)
+
+            let image = try await SCScreenshotManager.captureImage(
+                contentFilter: filter,
+                configuration: configuration
+            )
+            segments.append(
+                CapturedDisplaySegment(
+                    image: image,
+                    rectInSelection: CGRect(
+                        x: request.globalRect.minX - selectionRect.minX,
+                        y: request.globalRect.minY - selectionRect.minY,
+                        width: request.globalRect.width,
+                        height: request.globalRect.height
+                    ),
+                    scale: scale
+                )
+            )
+        }
+
+        guard !segments.isEmpty else {
+            throw ScreenCaptureServiceError.failedToCreateImage
+        }
+
+        return segments
+    }
+
+    private static func pngData(from cgImage: CGImage) -> Data? {
+        NSBitmapImageRep(cgImage: cgImage).representation(using: .png, properties: [:])
     }
 }
 
-private struct NativeCaptureResult {
-    let terminationStatus: Int32
-    let standardError: String
+private struct CapturedDisplaySegment {
+    let image: CGImage
+    let rectInSelection: CGRect
+    let scale: CGFloat
 }
