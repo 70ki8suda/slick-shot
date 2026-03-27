@@ -1,14 +1,14 @@
 const config = {
-  stripeLink: "https://buy.stripe.com/test_placeholder",
+  stripeLink: "https://buy.stripe.com/test_5kQ28r6Ed3Rd1rk1ZY5sA00",
   downloadLink: "https://downloads.slickshot.app/SlickShot.zip",
 };
 
 document.querySelectorAll("[data-stripe-link]").forEach((link) => {
   link.setAttribute("href", config.stripeLink);
   link.addEventListener("click", (event) => {
-    if (config.stripeLink.includes("test_placeholder")) {
+    if (config.stripeLink.includes("/test_")) {
       event.preventDefault();
-      window.alert("Stripe Payment Link を差し替えると購入導線が有効になります。");
+      window.alert("いまは Stripe のテスト決済リンクです。本番公開前に live の Payment Link へ差し替えてください。");
     }
   });
 });
