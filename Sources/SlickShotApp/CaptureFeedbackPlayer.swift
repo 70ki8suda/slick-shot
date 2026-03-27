@@ -50,7 +50,7 @@ final class CaptureFeedbackPlayer: CaptureFeedbackPlaying {
         case .dropCompleted:
             player.volume = 0.26
         case .reticleReveal:
-            player.volume = 0.12
+            player.volume = 0.1
         }
         player.prepareToPlay()
         activePlayers.append(player)
@@ -82,17 +82,59 @@ final class CaptureFeedbackPlayer: CaptureFeedbackPlaying {
                 pitchSnapMix: 0.05
             )
         case .reticleReveal:
-            return makeWAV(
-                startFrequency: 1_420,
-                endFrequency: 1_180,
-                duration: 0.05,
-                overtoneGain: 0.14,
-                transientMix: 0.28,
-                shimmerMix: 0.01,
-                mechanicalPulseMix: 0.18,
-                pitchSnapMix: 0.08
-            )
+            return makeReticleRevealWAV()
         }
+    }
+
+    private static func makeReticleRevealWAV(sampleRate: Double = 44_100) -> Data {
+        let duration = 0.4
+        let frameCount = max(1, Int(sampleRate * duration))
+        let bytesPerSample = MemoryLayout<Int16>.size
+        let channelCount = 1
+        let byteRate = Int(sampleRate) * channelCount * bytesPerSample
+        let blockAlign = channelCount * bytesPerSample
+        let dataSize = frameCount * channelCount * bytesPerSample
+        var data = Data(capacity: 44 + dataSize)
+
+        func append<T>(_ value: T) {
+            var mutableValue = value
+            withUnsafeBytes(of: &mutableValue) { data.append(contentsOf: $0) }
+        }
+
+        data.append("RIFF".data(using: .ascii)!)
+        append(UInt32(36 + dataSize))
+        data.append("WAVE".data(using: .ascii)!)
+        data.append("fmt ".data(using: .ascii)!)
+        append(UInt32(16))
+        append(UInt16(1))
+        append(UInt16(channelCount))
+        append(UInt32(sampleRate))
+        append(UInt32(byteRate))
+        append(UInt16(blockAlign))
+        append(UInt16(16))
+        data.append("data".data(using: .ascii)!)
+        append(UInt32(dataSize))
+
+        for sampleIndex in 0..<frameCount {
+            let progress = Double(sampleIndex) / Double(max(frameCount - 1, 1))
+            let eased = progress * progress * (3 - (2 * progress))
+            let baseFrequency = 540 + (190 * eased)
+            let theta = 2 * Double.pi * baseFrequency * (Double(sampleIndex) / sampleRate)
+            let overtoneTheta = theta * 1.96
+            let airTheta = theta * 2.9
+            let flutter = sin(2 * Double.pi * 8.5 * (Double(sampleIndex) / sampleRate))
+            let flutterGain = 1 + (flutter * 0.045)
+            let onset = min(1, progress / 0.08)
+            let release = min(1, (1 - progress) / 0.22)
+            let envelope = pow(min(onset, release), 0.9)
+            let signal = (sin(theta) * 0.74 * flutterGain)
+                + (sin(overtoneTheta) * 0.18)
+                + (sin(airTheta) * 0.05)
+            let sample = Int16(max(-1, min(1, signal * envelope * 0.5)) * Double(Int16.max))
+            append(sample)
+        }
+
+        return data
     }
 
     private static func makeWAV(
