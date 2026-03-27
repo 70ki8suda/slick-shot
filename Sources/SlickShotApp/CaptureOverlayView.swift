@@ -36,14 +36,12 @@ final class CaptureOverlayView: NSView {
     }
 
     override func draw(_ dirtyRect: NSRect) {
-        NSColor(calibratedRed: 0.01, green: 0.05, blue: 0.08, alpha: 0.42).setFill()
+        NSColor(calibratedWhite: 0.02, alpha: 0.34).setFill()
         Self.dimmingRects(in: bounds, excluding: selectionRect).forEach { $0.fill() }
 
         guard let selectionRect else { return }
 
-        NSColor(calibratedRed: 0.42, green: 0.92, blue: 1, alpha: 0.08).setFill()
-        NSBezierPath(rect: selectionRect).fill()
-
+        drawGlassSurface(in: selectionRect)
         drawScanlines(in: selectionRect)
     }
 
@@ -131,7 +129,7 @@ final class CaptureOverlayView: NSView {
         let edgeLayers = [topEdgeLayer, bottomEdgeLayer, leftEdgeLayer, rightEdgeLayer]
         for edgeLayer in edgeLayers {
             edgeLayer.fillColor = NSColor.clear.cgColor
-            edgeLayer.strokeColor = NSColor(calibratedRed: 0.44, green: 0.92, blue: 1, alpha: 0.92).cgColor
+            edgeLayer.strokeColor = NSColor(calibratedWhite: 1, alpha: 0.78).cgColor
             edgeLayer.lineWidth = 1.35
             edgeLayer.lineCap = .round
             edgeLayer.strokeStart = 0
@@ -140,16 +138,16 @@ final class CaptureOverlayView: NSView {
         }
 
         lagGlowLayer.fillColor = NSColor.clear.cgColor
-        lagGlowLayer.strokeColor = NSColor(calibratedRed: 0.3, green: 0.84, blue: 1, alpha: 0.28).cgColor
+        lagGlowLayer.strokeColor = NSColor(calibratedWhite: 1, alpha: 0.18).cgColor
         lagGlowLayer.lineWidth = 1.6
-        lagGlowLayer.shadowColor = NSColor(calibratedRed: 0.34, green: 0.88, blue: 1, alpha: 0.72).cgColor
-        lagGlowLayer.shadowOpacity = 0.46
-        lagGlowLayer.shadowRadius = 12
+        lagGlowLayer.shadowColor = NSColor(calibratedWhite: 1, alpha: 0.52).cgColor
+        lagGlowLayer.shadowOpacity = 0.28
+        lagGlowLayer.shadowRadius = 14
         lagGlowLayer.shadowOffset = .zero
         lagGlowLayer.opacity = 0
 
         outerFrameLayer.fillColor = NSColor.clear.cgColor
-        outerFrameLayer.strokeColor = NSColor(calibratedRed: 0.62, green: 0.97, blue: 1, alpha: 0.68).cgColor
+        outerFrameLayer.strokeColor = NSColor(calibratedWhite: 1, alpha: 0.72).cgColor
         outerFrameLayer.lineWidth = 1.2
         outerFrameLayer.lineCap = .round
         outerFrameLayer.lineJoin = .round
@@ -159,7 +157,7 @@ final class CaptureOverlayView: NSView {
 
         for segmentLayer in outerFrameSegmentLayers {
             segmentLayer.fillColor = NSColor.clear.cgColor
-            segmentLayer.strokeColor = NSColor(calibratedRed: 0.62, green: 0.97, blue: 1, alpha: 0.68).cgColor
+            segmentLayer.strokeColor = NSColor(calibratedWhite: 1, alpha: 0.72).cgColor
             segmentLayer.lineWidth = 1.2
             segmentLayer.lineCap = .round
             segmentLayer.lineJoin = .round
@@ -382,6 +380,34 @@ final class CaptureOverlayView: NSView {
         ].filter { !$0.isEmpty }
     }
 
+    private func drawGlassSurface(in rect: CGRect) {
+        let surfacePath = NSBezierPath(rect: rect)
+        NSColor.white.withAlphaComponent(0.06).setFill()
+        surfacePath.fill()
+
+        let gradient = NSGradient(colors: [
+            NSColor.white.withAlphaComponent(0.26),
+            NSColor.white.withAlphaComponent(0.1),
+            NSColor.white.withAlphaComponent(0.04),
+            NSColor.white.withAlphaComponent(0.12),
+        ])
+        gradient?.draw(in: surfacePath, angle: 90)
+
+        let topHighlight = NSBezierPath()
+        topHighlight.move(to: CGPoint(x: rect.minX + 1, y: rect.maxY - 1.5))
+        topHighlight.line(to: CGPoint(x: rect.maxX - 1, y: rect.maxY - 1.5))
+        topHighlight.lineWidth = 1
+        NSColor.white.withAlphaComponent(0.52).setStroke()
+        topHighlight.stroke()
+
+        let sideHighlight = NSBezierPath()
+        sideHighlight.move(to: CGPoint(x: rect.minX + 1.5, y: rect.minY + rect.height * 0.18))
+        sideHighlight.line(to: CGPoint(x: rect.minX + 1.5, y: rect.maxY - rect.height * 0.12))
+        sideHighlight.lineWidth = 0.8
+        NSColor.white.withAlphaComponent(0.18).setStroke()
+        sideHighlight.stroke()
+    }
+
     private func drawScanlines(in rect: CGRect) {
         let path = NSBezierPath()
         let step: CGFloat = 6
@@ -392,7 +418,7 @@ final class CaptureOverlayView: NSView {
             y += step
         }
         path.lineWidth = 0.8
-        NSColor.white.withAlphaComponent(0.08).setStroke()
+        NSColor.white.withAlphaComponent(0.03).setStroke()
         path.stroke()
     }
 
