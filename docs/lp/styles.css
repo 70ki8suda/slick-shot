@@ -309,11 +309,30 @@ h3 {
   pointer-events: none;
 }
 
-.hero-mock {
+.hero-video {
   position: absolute;
   inset: 0;
   border-radius: 34px;
-  padding: 18px;
+}
+
+.hero-video-media {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+}
+
+.hero-video-caption {
+  position: absolute;
+  right: 18px;
+  bottom: 18px;
+  z-index: 2;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 10px;
 }
 
 .mock-toolbar,
@@ -858,13 +877,8 @@ h3 {
     min-height: 420px;
   }
 
-  .hero-mock {
+  .hero-video {
     border-radius: 28px;
-    padding: 14px;
-  }
-
-  .capture-hud {
-    inset: 24px 16px 28px 28px;
   }
 
   .pricing-card,

@@ -55,60 +55,21 @@
           <div class="hero-stage">
             <div class="ambient ambient-a"></div>
             <div class="ambient ambient-b"></div>
-            <div class="hero-mock glass-card">
-              <div class="mock-toolbar">
-                <span></span>
-                <span></span>
-                <span></span>
-              </div>
-
-              <div class="mock-canvas">
-                <div class="mock-editor">
-                  <div class="mock-sidebar"></div>
-                  <div class="mock-panel">
-                    <div class="mock-lines">
-                      <span></span>
-                      <span></span>
-                      <span></span>
-                      <span></span>
-                    </div>
-                  </div>
-                </div>
-
-                <div class="capture-hud" aria-hidden="true">
-                  <svg viewBox="0 0 420 300" class="hud-svg">
-                    <defs>
-                      <linearGradient id="hudGlass" x1="0" x2="0" y1="0" y2="1">
-                        <stop offset="0%" stop-color="rgba(255,255,255,0.34)" />
-                        <stop offset="38%" stop-color="rgba(222,247,255,0.12)" />
-                        <stop offset="100%" stop-color="rgba(255,255,255,0.08)" />
-                      </linearGradient>
-                    </defs>
-                    <path
-                      class="hud-fill"
-                      d="M74 56 L321 56 L336 71 L336 188 L349 201 L349 250 L336 263 L76 263 L61 248 L61 70 Z"
-                    />
-                    <path
-                      class="hud-frame"
-                      pathLength="1"
-                      d="M74 56 L321 56 L336 71 L336 188 L349 201 L349 250 L336 263 L76 263 L61 248 L61 70 Z"
-                    />
-                    <path
-                      class="hud-inner"
-                      d="M93 75 L306 75 L318 87 L318 186 L329 197 L329 231 L318 243 L95 243 L83 231 L83 88 Z"
-                    />
-                  </svg>
-                  <div class="hud-thumbnail-stack">
-                    <div class="stack-card back"></div>
-                    <div class="stack-card mid"></div>
-                    <div class="stack-card front"></div>
-                  </div>
-                </div>
-              </div>
-
-              <div class="mock-footer">
-                <div class="mock-chip">⌃⇧⌘4</div>
-                <div class="mock-chip">Drag to Slack / AI / GitHub</div>
+            <div class="hero-video glass-card">
+              <video
+                class="hero-video-media"
+                autoplay
+                muted
+                loop
+                playsinline
+                preload="auto"
+                aria-label="SlickShot の動作デモ動画"
+              >
+                <source src="./assets/hero-demo.mov" type="video/quicktime" />
+              </video>
+              <div class="hero-video-caption">
+                <div class="mock-chip">動作デモ</div>
+                <div class="mock-chip">Capture → Hold → Drag &amp; Drop</div>
               </div>
             </div>
           </div>
