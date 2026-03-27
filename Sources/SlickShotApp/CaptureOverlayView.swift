@@ -411,10 +411,10 @@ final class CaptureOverlayView: NSView {
     private static func outerReticlePoints(in rect: CGRect) -> [CGPoint] {
         let horizontalInset = min(max(rect.width * 0.04, 6), 10)
         let verticalInset = min(max(rect.height * 0.04, 6), 10)
-        let cornerCut = min(max(min(rect.width, rect.height) * 0.05, 8), 11)
-        let stepWidth: CGFloat = 10
-        let stepHeight: CGFloat = 24
-        let stepBottomOffset: CGFloat = 10
+        let cornerCut: CGFloat = 9
+        let stepWidth: CGFloat = cornerCut
+        let stepHeight: CGFloat = 18
+        let stepBottomOffset: CGFloat = 8
 
         let leftX = rect.minX - horizontalInset
         let rightX = rect.maxX + horizontalInset
