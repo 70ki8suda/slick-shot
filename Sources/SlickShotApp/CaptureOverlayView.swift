@@ -413,8 +413,8 @@ final class CaptureOverlayView: NSView {
         let verticalInset = min(max(rect.height * 0.04, 6), 10)
         let cornerCut: CGFloat = 9
         let stepWidth: CGFloat = cornerCut
-        let stepHeight: CGFloat = 34
-        let stepBottomOffset: CGFloat = 6
+        let stepHeight: CGFloat = 50
+        let stepBottomOffset: CGFloat = 12
 
         let leftX = rect.minX - horizontalInset
         let rightX = rect.maxX + horizontalInset
