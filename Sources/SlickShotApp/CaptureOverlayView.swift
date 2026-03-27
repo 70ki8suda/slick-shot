@@ -3,6 +3,10 @@ import CoreGraphics
 
 @MainActor
 final class CaptureOverlayView: NSView {
+    private static let outerFrameRevealDelay: TimeInterval = 0.12
+    private static let outerFrameRevealDuration: TimeInterval = 0.4
+    private static let postRevealHoldDuration: TimeInterval = 0.12
+
     var onSelection: ((CGRect) -> Void)?
     var onCancel: (() -> Void)?
 
@@ -80,29 +84,35 @@ final class CaptureOverlayView: NSView {
 
     override func mouseUp(with event: NSEvent) {
         currentPoint = convert(event.locationInWindow, from: nil)
-        defer {
-            startPoint = nil
-            currentPoint = nil
-            pendingReticleUpdate?.cancel()
-            pendingOuterFrameReveal?.cancel()
-            pendingGlassRingReveal?.cancel()
-            displayedReticleRect = nil
-            updateReticleLayers(animated: false)
-            needsDisplay = true
-        }
 
         guard let selectionRect else {
+            resetSelectionState()
             onCancel?()
             return
         }
 
         let screenRect = convertSelectionToScreen(selectionRect)
         guard screenRect.width > 0, screenRect.height > 0 else {
+            resetSelectionState()
             onCancel?()
             return
         }
 
-        onSelection?(screenRect)
+        displayedReticleRect = selectionRect
+        updateReticleLayers(animated: true)
+        needsDisplay = true
+
+        let delay = dismissalDelayForCurrentReticle()
+        if delay > 0 {
+            DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak self] in
+                guard let self else { return }
+                self.onSelection?(screenRect)
+                self.resetSelectionState()
+            }
+        } else {
+            onSelection?(screenRect)
+            resetSelectionState()
+        }
     }
 
     override func keyDown(with event: NSEvent) {
@@ -300,10 +310,10 @@ final class CaptureOverlayView: NSView {
         pendingOuterFrameReveal?.cancel()
         let workItem = DispatchWorkItem { [weak self] in
             guard let self, self.selectionRect != nil, self.displayedReticleRect != nil else { return }
-            self.animateOuterFrameReveal(duration: 0.4)
+            self.animateOuterFrameReveal(duration: Self.outerFrameRevealDuration)
         }
         pendingOuterFrameReveal = workItem
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.12, execute: workItem)
+        DispatchQueue.main.asyncAfter(deadline: .now() + Self.outerFrameRevealDelay, execute: workItem)
     }
 
     private func scheduleGlassRingReveal() {
@@ -313,7 +323,10 @@ final class CaptureOverlayView: NSView {
             self.revealGlassRing()
         }
         pendingGlassRingReveal = workItem
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.58, execute: workItem)
+        DispatchQueue.main.asyncAfter(
+            deadline: .now() + Self.outerFrameRevealDelay + Self.outerFrameRevealDuration,
+            execute: workItem
+        )
     }
 
     private func updateGlassRingMask(outerRect: CGRect, innerRect: CGRect) {
@@ -340,6 +353,27 @@ final class CaptureOverlayView: NSView {
         }
         glassRingView.isHidden = true
         glassRingView.layer?.mask = nil
+    }
+
+    private func dismissalDelayForCurrentReticle() -> TimeInterval {
+        guard
+            let displayedReticleRect,
+            shouldShowDecoratedReticle(for: displayedReticleRect.insetBy(dx: -6, dy: -6))
+        else {
+            return 0
+        }
+        return Self.outerFrameRevealDelay + Self.outerFrameRevealDuration + Self.postRevealHoldDuration
+    }
+
+    private func resetSelectionState() {
+        startPoint = nil
+        currentPoint = nil
+        pendingReticleUpdate?.cancel()
+        pendingOuterFrameReveal?.cancel()
+        pendingGlassRingReveal?.cancel()
+        displayedReticleRect = nil
+        updateReticleLayers(animated: false)
+        needsDisplay = true
     }
 
     private func animateOuterFrameReveal(duration: CFTimeInterval) {
