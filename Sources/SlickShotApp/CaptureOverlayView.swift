@@ -48,7 +48,7 @@ final class CaptureOverlayView: NSView {
         NSColor(calibratedRed: 0.48, green: 0.95, blue: 1, alpha: 0.92).setStroke()
         framePath.stroke()
 
-        let cornerPath = Self.crosshairAccentPath(in: selectionRect, length: 18, gap: 7)
+        let cornerPath = Self.crosshairAccentPath(in: selectionRect, length: 12, gap: 5)
         cornerPath.lineWidth = 2.4
         NSColor.white.withAlphaComponent(0.86).setStroke()
         cornerPath.stroke()
@@ -59,13 +59,15 @@ final class CaptureOverlayView: NSView {
         startPoint = point
         currentPoint = point
         pendingReticleUpdate?.cancel()
-        displayedReticleRect = selectionRect
+        displayedReticleRect = nil
         updateReticleLayers(animated: false)
         needsDisplay = true
     }
 
     override func mouseDragged(with event: NSEvent) {
         currentPoint = convert(event.locationInWindow, from: nil)
+        displayedReticleRect = nil
+        updateReticleLayers(animated: false)
         scheduleReticleUpdate()
         needsDisplay = true
     }
@@ -177,17 +179,23 @@ final class CaptureOverlayView: NSView {
             return
         }
 
-        let outerRect = displayedReticleRect.insetBy(dx: -12, dy: -12)
+        let outerRect = displayedReticleRect.insetBy(dx: -10, dy: -10)
         let edgePaths = Self.edgePaths(in: outerRect, inset: 24)
-        let cornerPath = Self.crosshairAccentPath(in: outerRect, length: 20, gap: 10).cgPath
+        let cornerPath = Self.crosshairAccentPath(in: outerRect, length: 14, gap: 6).cgPath
 
         if animated {
-            animatePath(for: lagGlowLayer, to: NSBezierPath(rect: outerRect).cgPath, duration: 0.22)
-            animatePath(for: topEdgeLayer, to: edgePaths.top, duration: 0.22)
-            animatePath(for: bottomEdgeLayer, to: edgePaths.bottom, duration: 0.22)
-            animatePath(for: leftEdgeLayer, to: edgePaths.left, duration: 0.22)
-            animatePath(for: rightEdgeLayer, to: edgePaths.right, duration: 0.22)
-            animatePath(for: lagCornerLayer, to: cornerPath, duration: 0.22)
+            animateOpacityIfNeeded(for: lagGlowLayer, duration: 0.18)
+            animateOpacityIfNeeded(for: topEdgeLayer, duration: 0.18)
+            animateOpacityIfNeeded(for: bottomEdgeLayer, duration: 0.18)
+            animateOpacityIfNeeded(for: leftEdgeLayer, duration: 0.18)
+            animateOpacityIfNeeded(for: rightEdgeLayer, duration: 0.18)
+            animateOpacityIfNeeded(for: lagCornerLayer, duration: 0.18)
+            animatePath(for: lagGlowLayer, to: NSBezierPath(rect: outerRect).cgPath, duration: 0.28)
+            animatePath(for: topEdgeLayer, to: edgePaths.top, duration: 0.28)
+            animatePath(for: bottomEdgeLayer, to: edgePaths.bottom, duration: 0.28)
+            animatePath(for: leftEdgeLayer, to: edgePaths.left, duration: 0.28)
+            animatePath(for: rightEdgeLayer, to: edgePaths.right, duration: 0.28)
+            animatePath(for: lagCornerLayer, to: cornerPath, duration: 0.28)
         } else {
             CATransaction.begin()
             CATransaction.setDisableActions(true)
@@ -209,7 +217,7 @@ final class CaptureOverlayView: NSView {
 
     private func scheduleReticleUpdate() {
         pendingReticleUpdate?.cancel()
-        guard let selectionRect else {
+        guard selectionRect != nil else {
             displayedReticleRect = nil
             updateReticleLayers(animated: false)
             return
@@ -217,11 +225,19 @@ final class CaptureOverlayView: NSView {
 
         let workItem = DispatchWorkItem { [weak self] in
             guard let self else { return }
-            self.displayedReticleRect = selectionRect
-            self.updateReticleLayers(animated: true)
+            guard let settledRect = self.selectionRect else { return }
+            let seedRect = Self.centerSeedRect(for: settledRect)
+            self.displayedReticleRect = seedRect
+            self.updateReticleLayers(animated: false)
+
+            DispatchQueue.main.async { [weak self] in
+                guard let self, self.selectionRect != nil else { return }
+                self.displayedReticleRect = settledRect
+                self.updateReticleLayers(animated: true)
+            }
         }
         pendingReticleUpdate = workItem
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.075, execute: workItem)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1, execute: workItem)
     }
 
     private func animatePath(for layer: CAShapeLayer, to path: CGPath, duration: CFTimeInterval) {
@@ -232,6 +248,16 @@ final class CaptureOverlayView: NSView {
         animation.timingFunction = reticleTiming
         layer.path = path
         layer.add(animation, forKey: "reticlePath")
+    }
+
+    private func animateOpacityIfNeeded(for layer: CAShapeLayer, duration: CFTimeInterval) {
+        guard layer.opacity < 0.99 else { return }
+        let animation = CABasicAnimation(keyPath: "opacity")
+        animation.fromValue = layer.presentation()?.opacity ?? layer.opacity
+        animation.toValue = 1
+        animation.duration = duration
+        animation.timingFunction = reticleTiming
+        layer.add(animation, forKey: "reticleOpacity")
     }
 
     nonisolated static func dimmingRects(in bounds: CGRect, excluding selectionRect: CGRect?) -> [CGRect] {
@@ -339,6 +365,19 @@ final class CaptureOverlayView: NSView {
             bottom: horizontalPath(y: rect.minY),
             left: verticalPath(x: rect.minX),
             right: verticalPath(x: rect.maxX)
+        )
+    }
+
+    private static func centerSeedRect(for rect: CGRect) -> CGRect {
+        let seedSize = CGSize(
+            width: min(max(rect.width * 0.18, 18), 32),
+            height: min(max(rect.height * 0.18, 18), 32)
+        )
+        return CGRect(
+            x: rect.midX - (seedSize.width / 2),
+            y: rect.midY - (seedSize.height / 2),
+            width: seedSize.width,
+            height: seedSize.height
         )
     }
 }
