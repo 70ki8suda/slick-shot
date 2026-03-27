@@ -44,12 +44,6 @@ final class CaptureOverlayView: NSView {
         NSBezierPath(rect: selectionRect).fill()
 
         drawScanlines(in: selectionRect)
-
-        let framePath = NSBezierPath(rect: selectionRect)
-        framePath.lineWidth = 1.4
-        NSColor(calibratedRed: 0.48, green: 0.95, blue: 1, alpha: 0.92).setStroke()
-        framePath.stroke()
-
     }
 
     override func mouseDown(with event: NSEvent) {
