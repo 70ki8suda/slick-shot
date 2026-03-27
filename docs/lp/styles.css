@@ -500,7 +500,7 @@ h3 {
 
 .story-strip {
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  padding: 8px 0 110px;
+  padding: 8px 0 88px;
 }
 
 .story-step,
@@ -525,11 +525,10 @@ h3 {
 }
 
 .split-section,
-.experience-section,
 .use-case-section,
 .pricing-section,
 .faq-section {
-  padding: 40px 0 110px;
+  padding: 32px 0 88px;
 }
 
 .split-section {
@@ -553,12 +552,6 @@ h3 {
   display: block;
   margin-bottom: 12px;
   font-size: 20px;
-}
-
-.experience-showcase {
-  min-height: 620px;
-  border-radius: 34px;
-  padding: 18px;
 }
 
 .section-heading {
