@@ -189,13 +189,15 @@ final class CaptureOverlayView: NSView {
             animateOpacityIfNeeded(for: bottomEdgeLayer, duration: 0.18)
             animateOpacityIfNeeded(for: leftEdgeLayer, duration: 0.18)
             animateOpacityIfNeeded(for: rightEdgeLayer, duration: 0.18)
-            animateOpacityIfNeeded(for: lagCornerLayer, duration: 0.18)
-            animatePath(for: lagGlowLayer, to: NSBezierPath(rect: outerRect).cgPath, duration: 0.28)
-            animatePath(for: topEdgeLayer, to: edgePaths.top, duration: 0.28)
-            animatePath(for: bottomEdgeLayer, to: edgePaths.bottom, duration: 0.28)
-            animatePath(for: leftEdgeLayer, to: edgePaths.left, duration: 0.28)
-            animatePath(for: rightEdgeLayer, to: edgePaths.right, duration: 0.28)
-            animatePath(for: lagCornerLayer, to: cornerPath, duration: 0.28)
+            lagGlowLayer.path = NSBezierPath(rect: outerRect).cgPath
+            animatePath(for: topEdgeLayer, from: Self.collapsedHorizontalEdgePath(in: outerRect, inset: 24, at: .top), to: edgePaths.top, duration: 0.28)
+            animatePath(for: bottomEdgeLayer, from: Self.collapsedHorizontalEdgePath(in: outerRect, inset: 24, at: .bottom), to: edgePaths.bottom, duration: 0.28)
+            animatePath(for: leftEdgeLayer, from: Self.collapsedVerticalEdgePath(in: outerRect, inset: 24, at: .left), to: edgePaths.left, duration: 0.28)
+            animatePath(for: rightEdgeLayer, from: Self.collapsedVerticalEdgePath(in: outerRect, inset: 24, at: .right), to: edgePaths.right, duration: 0.28)
+            CATransaction.begin()
+            CATransaction.setDisableActions(true)
+            lagCornerLayer.path = cornerPath
+            CATransaction.commit()
         } else {
             CATransaction.begin()
             CATransaction.setDisableActions(true)
@@ -226,23 +228,16 @@ final class CaptureOverlayView: NSView {
         let workItem = DispatchWorkItem { [weak self] in
             guard let self else { return }
             guard let settledRect = self.selectionRect else { return }
-            let seedRect = Self.centerSeedRect(for: settledRect)
-            self.displayedReticleRect = seedRect
-            self.updateReticleLayers(animated: false)
-
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.045) { [weak self] in
-                guard let self, self.selectionRect != nil else { return }
-                self.displayedReticleRect = settledRect
-                self.updateReticleLayers(animated: true)
-            }
+            self.displayedReticleRect = settledRect
+            self.updateReticleLayers(animated: true)
         }
         pendingReticleUpdate = workItem
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.1, execute: workItem)
     }
 
-    private func animatePath(for layer: CAShapeLayer, to path: CGPath, duration: CFTimeInterval) {
+    private func animatePath(for layer: CAShapeLayer, from startPath: CGPath? = nil, to path: CGPath, duration: CFTimeInterval) {
         let animation = CABasicAnimation(keyPath: "path")
-        animation.fromValue = layer.presentation()?.path ?? layer.path
+        animation.fromValue = startPath ?? layer.presentation()?.path ?? layer.path
         animation.toValue = path
         animation.duration = duration
         animation.timingFunction = reticleTiming
@@ -368,16 +363,37 @@ final class CaptureOverlayView: NSView {
         )
     }
 
-    private static func centerSeedRect(for rect: CGRect) -> CGRect {
-        let seedSize = CGSize(
-            width: min(max(rect.width * 0.06, 4), 10),
-            height: min(max(rect.height * 0.06, 4), 10)
-        )
-        return CGRect(
-            x: rect.midX - (seedSize.width / 2),
-            y: rect.midY - (seedSize.height / 2),
-            width: seedSize.width,
-            height: seedSize.height
-        )
+    private enum VerticalEdge {
+        case left
+        case right
+    }
+
+    private enum HorizontalEdge {
+        case top
+        case bottom
+    }
+
+    private static func collapsedHorizontalEdgePath(in rect: CGRect, inset: CGFloat, at edge: HorizontalEdge) -> CGPath {
+        let horizontalInset = min(inset, rect.width * 0.3)
+        let availableWidth = max(rect.width - (horizontalInset * 2), 0)
+        let seedLength = min(max(availableWidth * 0.12, 10), 22)
+        let y = edge == .top ? rect.maxY : rect.minY
+        let midX = rect.midX
+        let path = NSBezierPath()
+        path.move(to: CGPoint(x: midX - (seedLength / 2), y: y))
+        path.line(to: CGPoint(x: midX + (seedLength / 2), y: y))
+        return path.cgPath
+    }
+
+    private static func collapsedVerticalEdgePath(in rect: CGRect, inset: CGFloat, at edge: VerticalEdge) -> CGPath {
+        let verticalInset = min(inset, rect.height * 0.3)
+        let availableHeight = max(rect.height - (verticalInset * 2), 0)
+        let seedLength = min(max(availableHeight * 0.12, 10), 22)
+        let x = edge == .left ? rect.minX : rect.maxX
+        let midY = rect.midY
+        let path = NSBezierPath()
+        path.move(to: CGPoint(x: x, y: midY - (seedLength / 2)))
+        path.line(to: CGPoint(x: x, y: midY + (seedLength / 2)))
+        return path.cgPath
     }
 }
