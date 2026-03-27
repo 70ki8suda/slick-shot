@@ -365,26 +365,33 @@ final class CaptureOverlayView: NSView {
 
     private static func outerReticlePath(in rect: CGRect) -> NSBezierPath {
         let path = NSBezierPath()
-        let cornerCut = min(max(min(rect.width, rect.height) * 0.06, 7), 13)
-        let sideTilt = min(max(rect.width * 0.035, 8), 16)
+        let horizontalInset = min(max(rect.width * 0.09, 16), 26)
+        let verticalInset = min(max(rect.height * 0.09, 12), 22)
+        let cornerCut = min(max(min(rect.width, rect.height) * 0.055, 8), 12)
+        let sideLean = min(max(rect.width * 0.012, 2), 6)
         let stepOut = min(max(rect.width * 0.055, 10), 20)
-        let stepHeight = min(max(rect.height * 0.12, 16), 28)
-        let stepCenterY = rect.minY + (rect.height * 0.42)
-        let stepTopY = stepCenterY + (stepHeight / 2)
-        let stepBottomY = stepCenterY - (stepHeight / 2)
+        let stepTopY = rect.minY + rect.height * 0.57
+        let stepBottomY = rect.minY + rect.height * 0.25
 
-        path.move(to: CGPoint(x: rect.minX + cornerCut + sideTilt, y: rect.maxY))
-        path.line(to: CGPoint(x: rect.maxX - cornerCut - sideTilt, y: rect.maxY))
-        path.line(to: CGPoint(x: rect.maxX - sideTilt, y: rect.maxY - cornerCut))
-        path.line(to: CGPoint(x: rect.maxX, y: stepTopY))
-        path.line(to: CGPoint(x: rect.maxX + stepOut, y: stepTopY - cornerCut))
-        path.line(to: CGPoint(x: rect.maxX + stepOut, y: stepBottomY + cornerCut))
-        path.line(to: CGPoint(x: rect.maxX, y: stepBottomY))
-        path.line(to: CGPoint(x: rect.maxX - sideTilt, y: rect.minY + cornerCut))
-        path.line(to: CGPoint(x: rect.maxX - cornerCut - sideTilt, y: rect.minY))
-        path.line(to: CGPoint(x: rect.minX + cornerCut + sideTilt, y: rect.minY))
-        path.line(to: CGPoint(x: rect.minX + sideTilt, y: rect.minY + cornerCut))
-        path.line(to: CGPoint(x: rect.minX, y: rect.maxY - cornerCut))
+        let leftXTop = rect.minX - horizontalInset
+        let leftXBottom = leftXTop + sideLean
+        let rightXTop = rect.maxX + horizontalInset
+        let rightXBottom = rightXTop - sideLean
+        let topY = rect.maxY + verticalInset
+        let bottomY = rect.minY - verticalInset
+
+        path.move(to: CGPoint(x: leftXTop + cornerCut, y: topY))
+        path.line(to: CGPoint(x: rightXTop - cornerCut, y: topY))
+        path.line(to: CGPoint(x: rightXTop, y: topY - cornerCut))
+        path.line(to: CGPoint(x: rightXTop + sideLean, y: stepTopY))
+        path.line(to: CGPoint(x: rightXTop + stepOut, y: stepTopY - cornerCut))
+        path.line(to: CGPoint(x: rightXTop + stepOut, y: stepBottomY + cornerCut))
+        path.line(to: CGPoint(x: rightXBottom + sideLean, y: stepBottomY))
+        path.line(to: CGPoint(x: rightXBottom, y: bottomY + cornerCut))
+        path.line(to: CGPoint(x: rightXBottom - cornerCut, y: bottomY))
+        path.line(to: CGPoint(x: leftXBottom + cornerCut, y: bottomY))
+        path.line(to: CGPoint(x: leftXBottom, y: bottomY + cornerCut))
+        path.line(to: CGPoint(x: leftXTop, y: topY - cornerCut))
         path.close()
         return path
     }
