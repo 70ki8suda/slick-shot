@@ -419,12 +419,21 @@ final class CaptureOverlayView: NSView {
 
     private static func outerReticlePath(in rect: CGRect) -> NSBezierPath {
         let path = NSBezierPath()
-        let cornerCut = min(max(min(rect.width, rect.height) * 0.085, 10), 18)
+        let cornerCut = min(max(min(rect.width, rect.height) * 0.095, 11), 20)
         let sideNotchDepth = min(max(rect.width * 0.06, 10), 18)
         let sideNotchHalfHeight = min(max(rect.height * 0.09, 10), 18)
+        let topShoulderInset = min(max(rect.width * 0.16, 22), 44)
+        let topShoulderDrop = min(max(rect.height * 0.07, 8), 16)
+        let bottomShoulderInset = min(max(rect.width * 0.1, 16), 30)
+        let bottomShoulderRise = min(max(rect.height * 0.04, 5), 10)
+        let crownWidth = min(max(rect.width * 0.18, 26), 54)
         let midY = rect.midY
 
         path.move(to: CGPoint(x: rect.minX + cornerCut, y: rect.maxY))
+        path.line(to: CGPoint(x: rect.minX + topShoulderInset, y: rect.maxY))
+        path.line(to: CGPoint(x: rect.midX - (crownWidth / 2), y: rect.maxY - topShoulderDrop))
+        path.line(to: CGPoint(x: rect.midX + (crownWidth / 2), y: rect.maxY - topShoulderDrop))
+        path.line(to: CGPoint(x: rect.maxX - topShoulderInset, y: rect.maxY))
         path.line(to: CGPoint(x: rect.maxX - cornerCut, y: rect.maxY))
         path.line(to: CGPoint(x: rect.maxX, y: rect.maxY - cornerCut))
         path.line(to: CGPoint(x: rect.maxX, y: midY + sideNotchHalfHeight))
@@ -433,6 +442,10 @@ final class CaptureOverlayView: NSView {
         path.line(to: CGPoint(x: rect.maxX, y: midY - sideNotchHalfHeight))
         path.line(to: CGPoint(x: rect.maxX, y: rect.minY + cornerCut))
         path.line(to: CGPoint(x: rect.maxX - cornerCut, y: rect.minY))
+        path.line(to: CGPoint(x: rect.maxX - bottomShoulderInset, y: rect.minY))
+        path.line(to: CGPoint(x: rect.midX + (crownWidth * 0.32), y: rect.minY + bottomShoulderRise))
+        path.line(to: CGPoint(x: rect.midX - (crownWidth * 0.22), y: rect.minY + bottomShoulderRise))
+        path.line(to: CGPoint(x: rect.minX + bottomShoulderInset, y: rect.minY))
         path.line(to: CGPoint(x: rect.minX + cornerCut, y: rect.minY))
         path.line(to: CGPoint(x: rect.minX, y: rect.minY + cornerCut))
         path.line(to: CGPoint(x: rect.minX, y: midY - sideNotchHalfHeight))
