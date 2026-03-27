@@ -184,6 +184,16 @@
         </div>
 
         <div class="group">
+          <h2>Mode</h2>
+          <div class="row">
+            <select id="draw-mode">
+              <option value="freehand">Freehand</option>
+              <option value="line">Straight Line</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="group">
           <h2>Brush</h2>
           <div class="row">
             <input id="brush-size" type="range" min="1" max="12" step="1" value="3" />
@@ -225,6 +235,7 @@
       const sizeValue = document.getElementById("brush-size-value");
       const opacityValue = document.getElementById("brush-opacity-value");
       const swatches = document.getElementById("swatches");
+      const drawModeSelect = document.getElementById("draw-mode");
       const undoButton = document.getElementById("undo");
       const clearButton = document.getElementById("clear");
       const downloadButton = document.getElementById("download");
@@ -299,16 +310,23 @@
 
       function startDrawing(event) {
         drawing = true;
+        const point = pointFromEvent(event);
         currentStroke = {
           ...currentBrush(),
-          points: [pointFromEvent(event)],
+          mode: drawModeSelect.value,
+          points: [point],
         };
         redraw();
       }
 
       function continueDrawing(event) {
         if (!drawing || !currentStroke) return;
-        currentStroke.points.push(pointFromEvent(event));
+        const point = pointFromEvent(event);
+        if (currentStroke.mode === "line") {
+          currentStroke.points = [currentStroke.points[0], point];
+        } else {
+          currentStroke.points.push(point);
+        }
         redraw();
       }
 
