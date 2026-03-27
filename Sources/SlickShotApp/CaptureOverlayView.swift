@@ -16,6 +16,7 @@ final class CaptureOverlayView: NSView {
     private var pendingReticleUpdate: DispatchWorkItem?
     private var pendingOuterFrameReveal: DispatchWorkItem?
     private var pendingGlassRingReveal: DispatchWorkItem?
+    private let feedbackPlayer: CaptureFeedbackPlaying
     private let glassRingView = NSVisualEffectView()
     private let glassRingTintView = NSView()
     private let topEdgeLayer = CAShapeLayer()
@@ -28,7 +29,11 @@ final class CaptureOverlayView: NSView {
     private let reticleTiming = CAMediaTimingFunction(controlPoints: 0.22, 1.14, 0.28, 1)
     private let minimumDecoratedExtent: CGFloat = 72
 
-    override init(frame frameRect: NSRect) {
+    init(
+        frame frameRect: NSRect,
+        feedbackPlayer: CaptureFeedbackPlaying = NullCaptureFeedbackPlayer()
+    ) {
+        self.feedbackPlayer = feedbackPlayer
         super.init(frame: frameRect)
         wantsLayer = true
         configureGlassRingView()
@@ -310,6 +315,7 @@ final class CaptureOverlayView: NSView {
         pendingOuterFrameReveal?.cancel()
         let workItem = DispatchWorkItem { [weak self] in
             guard let self, self.selectionRect != nil, self.displayedReticleRect != nil else { return }
+            self.feedbackPlayer.playReticleReveal()
             self.animateOuterFrameReveal(duration: Self.outerFrameRevealDuration)
         }
         pendingOuterFrameReveal = workItem

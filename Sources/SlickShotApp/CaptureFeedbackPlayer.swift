@@ -5,12 +5,14 @@ import Foundation
 protocol CaptureFeedbackPlaying: AnyObject {
     func playCaptureCompleted()
     func playDropCompleted()
+    func playReticleReveal()
 }
 
 @MainActor
 final class NullCaptureFeedbackPlayer: CaptureFeedbackPlaying {
     func playCaptureCompleted() {}
     func playDropCompleted() {}
+    func playReticleReveal() {}
 }
 
 @MainActor
@@ -18,6 +20,7 @@ final class CaptureFeedbackPlayer: CaptureFeedbackPlaying {
     private enum Event {
         case captureCompleted
         case dropCompleted
+        case reticleReveal
     }
 
     private var activePlayers: [AVAudioPlayer] = []
@@ -30,6 +33,10 @@ final class CaptureFeedbackPlayer: CaptureFeedbackPlaying {
         play(.dropCompleted)
     }
 
+    func playReticleReveal() {
+        play(.reticleReveal)
+    }
+
     private func play(_ event: Event) {
         let waveform = Self.makeWaveform(for: event)
         guard let player = try? AVAudioPlayer(data: waveform, fileTypeHint: AVFileType.wav.rawValue) else {
@@ -37,7 +44,14 @@ final class CaptureFeedbackPlayer: CaptureFeedbackPlaying {
         }
 
         activePlayers.removeAll { !$0.isPlaying }
-        player.volume = event == .captureCompleted ? 0.42 : 0.26
+        switch event {
+        case .captureCompleted:
+            player.volume = 0.42
+        case .dropCompleted:
+            player.volume = 0.26
+        case .reticleReveal:
+            player.volume = 0.12
+        }
         player.prepareToPlay()
         activePlayers.append(player)
         player.play()
@@ -47,14 +61,14 @@ final class CaptureFeedbackPlayer: CaptureFeedbackPlaying {
         switch event {
         case .captureCompleted:
             return makeWAV(
-                startFrequency: 720,
-                endFrequency: 1_080,
-                duration: 0.145,
-                overtoneGain: 0.3,
-                transientMix: 0.22,
-                shimmerMix: 0.05,
-                mechanicalPulseMix: 0.18,
-                pitchSnapMix: 0.12
+                startFrequency: 760,
+                endFrequency: 980,
+                duration: 0.11,
+                overtoneGain: 0.24,
+                transientMix: 0.34,
+                shimmerMix: 0.01,
+                mechanicalPulseMix: 0.24,
+                pitchSnapMix: 0.16
             )
         case .dropCompleted:
             return makeWAV(
@@ -66,6 +80,17 @@ final class CaptureFeedbackPlayer: CaptureFeedbackPlaying {
                 shimmerMix: 0.08,
                 mechanicalPulseMix: 0.04,
                 pitchSnapMix: 0.05
+            )
+        case .reticleReveal:
+            return makeWAV(
+                startFrequency: 1_420,
+                endFrequency: 1_180,
+                duration: 0.05,
+                overtoneGain: 0.14,
+                transientMix: 0.28,
+                shimmerMix: 0.01,
+                mechanicalPulseMix: 0.18,
+                pitchSnapMix: 0.08
             )
         }
     }

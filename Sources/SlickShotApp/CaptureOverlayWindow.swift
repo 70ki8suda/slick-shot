@@ -42,10 +42,11 @@ final class CaptureOverlayWindow: NSWindow, CaptureOverlaySession {
     init(
         frame: CGRect,
         frontmostProvider: FrontmostApplicationProviding = WorkspaceFrontmostApplicationProvider(),
+        feedbackPlayer: CaptureFeedbackPlaying = NullCaptureFeedbackPlayer(),
         onSelection: @escaping (CGRect) -> Void,
         onCancel: @escaping () -> Void
     ) {
-        overlayView = CaptureOverlayView(frame: CGRect(origin: .zero, size: frame.size))
+        overlayView = CaptureOverlayView(frame: CGRect(origin: .zero, size: frame.size), feedbackPlayer: feedbackPlayer)
         self.frontmostProvider = frontmostProvider
         super.init(
             contentRect: frame,
@@ -116,15 +117,18 @@ private final class CaptureOverlaySessionGroup: CaptureOverlaySession {
 @MainActor
 struct LiveCaptureOverlaySessionFactory: CaptureOverlaySessionFactory {
     private let screenFramesProvider: ScreenFramesProviding
+    private let feedbackPlayer: CaptureFeedbackPlaying
     private let sessionBuilder: (CGRect, @escaping (CGRect) -> Void, @escaping () -> Void) -> CaptureOverlaySession
 
     init(
         screenFramesProvider: ScreenFramesProviding = NSScreenFramesProvider(),
+        feedbackPlayer: CaptureFeedbackPlaying = NullCaptureFeedbackPlayer(),
         sessionBuilder: @escaping (CGRect, @escaping (CGRect) -> Void, @escaping () -> Void) -> CaptureOverlaySession = { frame, onSelection, onCancel in
             CaptureOverlayWindow(frame: frame, onSelection: onSelection, onCancel: onCancel)
         }
     ) {
         self.screenFramesProvider = screenFramesProvider
+        self.feedbackPlayer = feedbackPlayer
         self.sessionBuilder = sessionBuilder
     }
 
@@ -135,7 +139,12 @@ struct LiveCaptureOverlaySessionFactory: CaptureOverlaySessionFactory {
         let sessions = screenFramesProvider
             .screenFrames()
             .map { frame in
-                sessionBuilder(frame, onSelection, onCancel)
+                CaptureOverlayWindow(
+                    frame: frame,
+                    feedbackPlayer: feedbackPlayer,
+                    onSelection: onSelection,
+                    onCancel: onCancel
+                )
             }
         return CaptureOverlaySessionGroup(sessions: sessions)
     }

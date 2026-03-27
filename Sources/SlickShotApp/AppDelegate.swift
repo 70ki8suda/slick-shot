@@ -37,7 +37,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         captureCoordinator = CaptureCoordinator(
             store: store,
             captureService: captureService,
-            overlayFactory: LiveCaptureOverlaySessionFactory(),
+            overlayFactory: LiveCaptureOverlaySessionFactory(feedbackPlayer: feedbackPlayer),
             settingsWindowController: settingsWindowController,
             feedbackPlayer: feedbackPlayer
         )
