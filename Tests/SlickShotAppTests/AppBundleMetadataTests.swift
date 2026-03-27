@@ -28,6 +28,7 @@ struct AppBundleMetadataTests {
         #expect(script.contains("security add-trusted-cert -d -r trustRoot -k \"$KEYCHAIN_PATH\" \"$certificate\""))
         #expect(script.contains("codesign --force --deep --keychain \"$KEYCHAIN_PATH\" --sign \"$IDENTITY_HASH\" \"$APP_DIR\""))
         #expect(script.contains("Sparkle.framework"))
+        #expect(script.contains("install_name_tool -add_rpath \"@executable_path/../Frameworks\""))
         #expect(script.contains("<key>SUFeedURL</key>"))
         #expect(script.contains("<key>SUPublicEDKey</key>"))
     }
@@ -61,6 +62,7 @@ struct AppBundleMetadataTests {
 
         #expect(buildScript.contains("notarytool"))
         #expect(buildScript.contains("SLICKSHOT_DEVELOPER_ID_APP"))
+        #expect(buildScript.contains("install_name_tool -add_rpath \"@executable_path/../Frameworks\""))
         #expect(appcastScript.contains("generate_appcast"))
         #expect(appcastScript.contains("appcast.xml"))
         #expect(readme.contains("Sparkle"))
