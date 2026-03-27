@@ -274,8 +274,8 @@ final class ThumbnailItemView: NSView {
         let stepBottomOffset = min(max(rect.height * 0.2, 22), 30)
 
         let leftX = rect.minX
-        let rightX = rect.maxX
-        let outerStepX = rightX + stepWidth
+        let rightX = rect.maxX - stepWidth
+        let outerStepX = rect.maxX
         let topY = rect.maxY
         let bottomY = rect.minY
         let stepBottomY = bottomY + stepBottomOffset
