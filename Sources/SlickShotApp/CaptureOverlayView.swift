@@ -15,6 +15,7 @@ final class CaptureOverlayView: NSView {
     private let leftEdgeLayer = CAShapeLayer()
     private let rightEdgeLayer = CAShapeLayer()
     private let lagCornerLayer = CAShapeLayer()
+    private let outerFrameLayer = CAShapeLayer()
     private let lagGlowLayer = CAShapeLayer()
     private let reticleTiming = CAMediaTimingFunction(controlPoints: 0.22, 1.14, 0.28, 1)
     private let minimumDecoratedExtent: CGFloat = 72
@@ -153,6 +154,13 @@ final class CaptureOverlayView: NSView {
         lagGlowLayer.shadowOffset = .zero
         lagGlowLayer.opacity = 0
 
+        outerFrameLayer.fillColor = NSColor.clear.cgColor
+        outerFrameLayer.strokeColor = NSColor(calibratedRed: 0.62, green: 0.97, blue: 1, alpha: 0.68).cgColor
+        outerFrameLayer.lineWidth = 1.2
+        outerFrameLayer.lineCap = .round
+        outerFrameLayer.lineJoin = .round
+        outerFrameLayer.opacity = 0
+
         lagCornerLayer.fillColor = NSColor.clear.cgColor
         lagCornerLayer.strokeColor = NSColor.white.withAlphaComponent(0.94).cgColor
         lagCornerLayer.lineWidth = 1.8
@@ -160,6 +168,7 @@ final class CaptureOverlayView: NSView {
         lagCornerLayer.opacity = 0
 
         layer?.addSublayer(lagGlowLayer)
+        layer?.addSublayer(outerFrameLayer)
         edgeLayers.forEach { layer?.addSublayer($0) }
         layer?.addSublayer(lagCornerLayer)
     }
@@ -170,12 +179,14 @@ final class CaptureOverlayView: NSView {
             CATransaction.begin()
             CATransaction.setDisableActions(true)
             lagGlowLayer.opacity = 0
+            outerFrameLayer.opacity = 0
             topEdgeLayer.opacity = 0
             bottomEdgeLayer.opacity = 0
             leftEdgeLayer.opacity = 0
             rightEdgeLayer.opacity = 0
             lagCornerLayer.opacity = 0
             lagGlowLayer.path = nil
+            outerFrameLayer.path = nil
             topEdgeLayer.path = nil
             bottomEdgeLayer.path = nil
             leftEdgeLayer.path = nil
@@ -199,12 +210,14 @@ final class CaptureOverlayView: NSView {
             CATransaction.begin()
             CATransaction.setDisableActions(true)
             lagGlowLayer.opacity = 0
+            outerFrameLayer.opacity = 0
             topEdgeLayer.opacity = 0
             bottomEdgeLayer.opacity = 0
             leftEdgeLayer.opacity = 0
             rightEdgeLayer.opacity = 0
             lagCornerLayer.opacity = 0
             lagGlowLayer.path = nil
+            outerFrameLayer.path = nil
             topEdgeLayer.path = nil
             bottomEdgeLayer.path = nil
             leftEdgeLayer.path = nil
@@ -213,18 +226,21 @@ final class CaptureOverlayView: NSView {
             CATransaction.commit()
             return
         }
+        let outerFramePath = Self.outerReticlePath(in: outerRect).cgPath
         let edgePaths = Self.edgePaths(in: outerRect, inset: 24)
         let cornerPath = Self.crosshairAccentPath(in: outerRect, length: 14, gap: 6).cgPath
 
         CATransaction.begin()
         CATransaction.setDisableActions(true)
-        lagGlowLayer.path = NSBezierPath(rect: outerRect).cgPath
+        lagGlowLayer.path = outerFramePath
+        outerFrameLayer.path = outerFramePath
         topEdgeLayer.path = edgePaths.top
         bottomEdgeLayer.path = edgePaths.bottom
         leftEdgeLayer.path = edgePaths.left
         rightEdgeLayer.path = edgePaths.right
         lagCornerLayer.path = cornerPath
         lagGlowLayer.opacity = 1
+        outerFrameLayer.opacity = 1
         topEdgeLayer.opacity = 1
         bottomEdgeLayer.opacity = 1
         leftEdgeLayer.opacity = 1
@@ -380,6 +396,33 @@ final class CaptureOverlayView: NSView {
             verticalDirection: -1
         )
 
+        return path
+    }
+
+    private static func outerReticlePath(in rect: CGRect) -> NSBezierPath {
+        let path = NSBezierPath()
+        let cornerCut = min(max(min(rect.width, rect.height) * 0.085, 10), 18)
+        let sideNotchDepth = min(max(rect.width * 0.06, 10), 18)
+        let sideNotchHalfHeight = min(max(rect.height * 0.09, 10), 18)
+        let midY = rect.midY
+
+        path.move(to: CGPoint(x: rect.minX + cornerCut, y: rect.maxY))
+        path.line(to: CGPoint(x: rect.maxX - cornerCut, y: rect.maxY))
+        path.line(to: CGPoint(x: rect.maxX, y: rect.maxY - cornerCut))
+        path.line(to: CGPoint(x: rect.maxX, y: midY + sideNotchHalfHeight))
+        path.line(to: CGPoint(x: rect.maxX - sideNotchDepth, y: midY + (sideNotchHalfHeight * 0.44)))
+        path.line(to: CGPoint(x: rect.maxX - sideNotchDepth, y: midY - (sideNotchHalfHeight * 0.44)))
+        path.line(to: CGPoint(x: rect.maxX, y: midY - sideNotchHalfHeight))
+        path.line(to: CGPoint(x: rect.maxX, y: rect.minY + cornerCut))
+        path.line(to: CGPoint(x: rect.maxX - cornerCut, y: rect.minY))
+        path.line(to: CGPoint(x: rect.minX + cornerCut, y: rect.minY))
+        path.line(to: CGPoint(x: rect.minX, y: rect.minY + cornerCut))
+        path.line(to: CGPoint(x: rect.minX, y: midY - sideNotchHalfHeight))
+        path.line(to: CGPoint(x: rect.minX + sideNotchDepth, y: midY - (sideNotchHalfHeight * 0.44)))
+        path.line(to: CGPoint(x: rect.minX + sideNotchDepth, y: midY + (sideNotchHalfHeight * 0.44)))
+        path.line(to: CGPoint(x: rect.minX, y: midY + sideNotchHalfHeight))
+        path.line(to: CGPoint(x: rect.minX, y: rect.maxY - cornerCut))
+        path.close()
         return path
     }
 
