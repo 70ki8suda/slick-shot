@@ -17,6 +17,7 @@ final class NullCaptureFeedbackPlayer: CaptureFeedbackPlaying {
 
 @MainActor
 final class CaptureFeedbackPlayer: CaptureFeedbackPlaying {
+    private let isReticleRevealEnabled = false
     private enum Event {
         case captureCompleted
         case dropCompleted
@@ -34,6 +35,7 @@ final class CaptureFeedbackPlayer: CaptureFeedbackPlaying {
     }
 
     func playReticleReveal() {
+        guard isReticleRevealEnabled else { return }
         play(.reticleReveal)
     }
 

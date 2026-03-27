@@ -240,7 +240,7 @@ final class CaptureOverlayView: NSView {
             return
         }
 
-        let outerRect = displayedReticleRect.insetBy(dx: -6, dy: -6)
+        let outerRect = displayedReticleRect.insetBy(dx: -4.5, dy: -4.5)
         guard shouldShowDecoratedReticle(for: outerRect) else {
             hideGlassRing()
             cancelReticleAnimations()
@@ -364,7 +364,7 @@ final class CaptureOverlayView: NSView {
     private func dismissalDelayForCurrentReticle() -> TimeInterval {
         guard
             let displayedReticleRect,
-            shouldShowDecoratedReticle(for: displayedReticleRect.insetBy(dx: -6, dy: -6))
+            shouldShowDecoratedReticle(for: displayedReticleRect.insetBy(dx: -4.5, dy: -4.5))
         else {
             return 0
         }
@@ -560,8 +560,8 @@ final class CaptureOverlayView: NSView {
     }
 
     private static func outerReticlePoints(in rect: CGRect) -> [CGPoint] {
-        let horizontalInset = min(max(rect.width * 0.04, 6), 10)
-        let verticalInset = min(max(rect.height * 0.04, 6), 10)
+        let horizontalInset = min(max(rect.width * 0.03, 4.5), 7.5)
+        let verticalInset = min(max(rect.height * 0.03, 4.5), 7.5)
         let cornerCut: CGFloat = 9
         let stepWidth: CGFloat = cornerCut
         let stepHeight: CGFloat = 74
