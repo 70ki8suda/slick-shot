@@ -4,7 +4,7 @@ import CoreGraphics
 @MainActor
 final class CaptureOverlayView: NSView {
     private static let outerFrameRevealDelay: TimeInterval = 0.12
-    private static let outerFrameRevealDuration: TimeInterval = 0.4
+    private static let outerFrameRevealDuration: TimeInterval = 0.25
     private static let postRevealHoldDuration: TimeInterval = 0.12
 
     var onSelection: ((CGRect) -> Void)?
