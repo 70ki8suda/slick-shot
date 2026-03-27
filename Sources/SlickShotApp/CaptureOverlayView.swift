@@ -324,29 +324,27 @@ final class CaptureOverlayView: NSView {
         let horizontalInset = min(max(rect.width * 0.09, 16), 26)
         let verticalInset = min(max(rect.height * 0.09, 12), 22)
         let cornerCut = min(max(min(rect.width, rect.height) * 0.055, 8), 12)
-        let sideLean = min(max(rect.width * 0.012, 2), 6)
-        let stepOut = min(max(rect.width * 0.055, 10), 20)
-        let stepTopY = rect.minY + rect.height * 0.3
-        let stepBottomY = rect.minY + rect.height * 0.12
+        let stepTopY = rect.minY + rect.height * 0.34
+        let stepBottomY = rect.minY + rect.height * 0.14
 
-        let leftXTop = rect.minX - horizontalInset
-        let leftXBottom = leftXTop + sideLean
+        let leftX = rect.minX - horizontalInset
         let rightX = rect.maxX + horizontalInset
+        let outerStepX = rightX + cornerCut
         let topY = rect.maxY + verticalInset
         let bottomY = rect.minY - verticalInset
 
-        path.move(to: CGPoint(x: leftXTop + cornerCut, y: topY))
+        path.move(to: CGPoint(x: leftX + cornerCut, y: topY))
         path.line(to: CGPoint(x: rightX - cornerCut, y: topY))
         path.line(to: CGPoint(x: rightX, y: topY - cornerCut))
         path.line(to: CGPoint(x: rightX, y: stepTopY))
-        path.line(to: CGPoint(x: rightX + stepOut, y: stepTopY - cornerCut))
-        path.line(to: CGPoint(x: rightX + stepOut, y: stepBottomY + cornerCut))
+        path.line(to: CGPoint(x: outerStepX, y: stepTopY - cornerCut))
+        path.line(to: CGPoint(x: outerStepX, y: stepBottomY + cornerCut))
         path.line(to: CGPoint(x: rightX, y: stepBottomY))
         path.line(to: CGPoint(x: rightX, y: bottomY + cornerCut))
         path.line(to: CGPoint(x: rightX - cornerCut, y: bottomY))
-        path.line(to: CGPoint(x: leftXBottom + cornerCut, y: bottomY))
-        path.line(to: CGPoint(x: leftXBottom, y: bottomY + cornerCut))
-        path.line(to: CGPoint(x: leftXTop, y: topY - cornerCut))
+        path.line(to: CGPoint(x: leftX + cornerCut, y: bottomY))
+        path.line(to: CGPoint(x: leftX, y: bottomY + cornerCut))
+        path.line(to: CGPoint(x: leftX, y: topY - cornerCut))
         path.close()
         return path
     }
