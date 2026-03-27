@@ -177,6 +177,14 @@ final class CaptureOverlayView: NSView {
             bottomEdgeLayer.path = nil
             leftEdgeLayer.path = nil
             rightEdgeLayer.path = nil
+            topEdgeLayer.strokeStart = 0
+            topEdgeLayer.strokeEnd = 1
+            bottomEdgeLayer.strokeStart = 0
+            bottomEdgeLayer.strokeEnd = 1
+            leftEdgeLayer.strokeStart = 0
+            leftEdgeLayer.strokeEnd = 1
+            rightEdgeLayer.strokeStart = 0
+            rightEdgeLayer.strokeEnd = 1
             lagCornerLayer.path = nil
             CATransaction.commit()
             return
@@ -243,23 +251,27 @@ final class CaptureOverlayView: NSView {
             self.updateReticleLayers(animated: true)
         }
         pendingReticleUpdate = workItem
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1, execute: workItem)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.14, execute: workItem)
     }
 
     private func animateLineExpansion(for layer: CAShapeLayer, duration: CFTimeInterval) {
-        let currentStart = layer.presentation()?.strokeStart ?? layer.strokeStart
-        let currentEnd = layer.presentation()?.strokeEnd ?? layer.strokeEnd
         layer.removeAnimation(forKey: "reticleStrokeStart")
         layer.removeAnimation(forKey: "reticleStrokeEnd")
 
+        CATransaction.begin()
+        CATransaction.setDisableActions(true)
+        layer.strokeStart = 0.5
+        layer.strokeEnd = 0.5
+        CATransaction.commit()
+
         let startAnimation = CABasicAnimation(keyPath: "strokeStart")
-        startAnimation.fromValue = currentStart
+        startAnimation.fromValue = 0.5
         startAnimation.toValue = 0
         startAnimation.duration = duration
         startAnimation.timingFunction = reticleTiming
 
         let endAnimation = CABasicAnimation(keyPath: "strokeEnd")
-        endAnimation.fromValue = currentEnd
+        endAnimation.fromValue = 0.5
         endAnimation.toValue = 1
         endAnimation.duration = duration
         endAnimation.timingFunction = reticleTiming
