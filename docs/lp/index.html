@@ -1,0 +1,276 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>SlickShot | 撮って、渡して、消える。</title>
+    <meta
+      name="description"
+      content="デスクトップを汚さない、macOS専用のスクリーンショットバッファ。撮って、右下にためて、SlackやAIやGitHubにドラッグしたら消える。"
+    />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div class="page-shell">
+      <header class="topbar">
+        <a class="brand" href="#top">
+          <span class="brand-mark">S</span>
+          <span class="brand-copy">
+            <strong>SlickShot</strong>
+            <span>macOS Screenshot Buffer</span>
+          </span>
+        </a>
+        <nav class="topnav">
+          <a href="#product">特徴</a>
+          <a href="#pricing">価格</a>
+          <a href="#faq">FAQ</a>
+        </nav>
+        <a class="ghost-button" href="#pricing">300円で購入</a>
+      </header>
+
+      <main id="top">
+        <section class="hero">
+          <div class="hero-copy">
+            <div class="eyebrow">
+              <span class="eyebrow-pill">macOS専用</span>
+              <span class="eyebrow-pill subtle">買い切り 300円</span>
+            </div>
+            <h1>撮って、渡して、消える。</h1>
+            <p class="hero-lead">
+              SlickShot は、スクリーンショットを保存ファイルではなく一時バッファとして扱う
+              macOS 専用ツールです。Slack、AI、GitHub に渡したら、もう残りません。
+            </p>
+            <div class="cta-row">
+              <a class="primary-button" data-stripe-link href="#pricing">300円で購入</a>
+              <a class="secondary-button" href="#demo">デモを見る</a>
+            </div>
+            <ul class="hero-meta">
+              <li>デスクトップ保存なし</li>
+              <li>右下に一時保持</li>
+              <li>ドラッグ後に自動で消える</li>
+            </ul>
+          </div>
+
+          <div class="hero-stage">
+            <div class="ambient ambient-a"></div>
+            <div class="ambient ambient-b"></div>
+            <div class="hero-mock glass-card">
+              <div class="mock-toolbar">
+                <span></span>
+                <span></span>
+                <span></span>
+              </div>
+
+              <div class="mock-canvas">
+                <div class="mock-editor">
+                  <div class="mock-sidebar"></div>
+                  <div class="mock-panel">
+                    <div class="mock-lines">
+                      <span></span>
+                      <span></span>
+                      <span></span>
+                      <span></span>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="capture-hud" aria-hidden="true">
+                  <svg viewBox="0 0 420 300" class="hud-svg">
+                    <defs>
+                      <linearGradient id="hudGlass" x1="0" x2="0" y1="0" y2="1">
+                        <stop offset="0%" stop-color="rgba(255,255,255,0.34)" />
+                        <stop offset="38%" stop-color="rgba(222,247,255,0.12)" />
+                        <stop offset="100%" stop-color="rgba(255,255,255,0.08)" />
+                      </linearGradient>
+                    </defs>
+                    <path
+                      class="hud-fill"
+                      d="M74 56 L321 56 L336 71 L336 188 L349 201 L349 250 L336 263 L76 263 L61 248 L61 70 Z"
+                    />
+                    <path
+                      class="hud-frame"
+                      pathLength="1"
+                      d="M74 56 L321 56 L336 71 L336 188 L349 201 L349 250 L336 263 L76 263 L61 248 L61 70 Z"
+                    />
+                    <path
+                      class="hud-inner"
+                      d="M93 75 L306 75 L318 87 L318 186 L329 197 L329 231 L318 243 L95 243 L83 231 L83 88 Z"
+                    />
+                  </svg>
+                  <div class="hud-thumbnail-stack">
+                    <div class="stack-card back"></div>
+                    <div class="stack-card mid"></div>
+                    <div class="stack-card front"></div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="mock-footer">
+                <div class="mock-chip">⌃⇧⌘4</div>
+                <div class="mock-chip">Drag to Slack / AI / GitHub</div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="story-strip" id="demo">
+          <div class="story-step glass-card">
+            <span class="step-index">01</span>
+            <h2>Capture</h2>
+            <p>ショートカットで範囲選択。macOSらしい軽さのまま、少しだけ未来感のある HUD。</p>
+          </div>
+          <div class="story-step glass-card">
+            <span class="step-index">02</span>
+            <h2>Hold</h2>
+            <p>スクショはデスクトップに保存されず、右下に一時的にたまります。</p>
+          </div>
+          <div class="story-step glass-card">
+            <span class="step-index">03</span>
+            <h2>Drop</h2>
+            <p>Slack、AI、GitHubへドラッグ。渡したら消えるので、整理の手間が残りません。</p>
+          </div>
+        </section>
+
+        <section class="split-section" id="product">
+          <div class="split-copy">
+            <p class="section-kicker">Problem</p>
+            <h2>こんな無駄、毎日やっていませんか</h2>
+            <ul class="problem-list">
+              <li>スクショが毎回デスクトップに散らばる</li>
+              <li>貼ったあと毎回手で消している</li>
+              <li>Slack、AI、GitHub に渡すたびに同じ操作を繰り返す</li>
+            </ul>
+          </div>
+          <div class="split-panel glass-card">
+            <p class="section-kicker">Solution</p>
+            <h3>保存ファイルではなく、一時バッファとして扱う</h3>
+            <div class="feature-grid">
+              <article>
+                <strong>保存しない</strong>
+                <p>撮った瞬間にデスクトップへ落とさず、そのままアプリ内へ。</p>
+              </article>
+              <article>
+                <strong>右下に保持</strong>
+                <p>必要なぶんだけ溜めて、ドラッグのための一時置き場にする。</p>
+              </article>
+              <article>
+                <strong>渡したら消える</strong>
+                <p>使い終わったスクショがワークスペースに残り続けない。</p>
+              </article>
+            </div>
+          </div>
+        </section>
+
+        <section class="experience-section">
+          <div class="section-heading">
+            <p class="section-kicker">Experience</p>
+            <h2>ネイティブっぽく、でも少し気持ちいい</h2>
+            <p>
+              白ベースの静かな未来感。liquid glass、硬質な shape、短いサウンドで、毎日の
+              QA やレビューの流れを少しだけ上質にします。
+            </p>
+          </div>
+          <div class="experience-grid">
+            <article class="glass-card">
+              <strong>静かなHUD</strong>
+              <p>作業を邪魔しないまま、少しだけ SF 的なキャプチャ体験。</p>
+            </article>
+            <article class="glass-card">
+              <strong>機械的な短い音</strong>
+              <p>派手な通知音ではなく、硬質で無駄のないフィードバック。</p>
+            </article>
+            <article class="glass-card">
+              <strong>shape の一貫性</strong>
+              <p>撮影時の外周フレームとサムネイル表示が同じ言語でつながる。</p>
+            </article>
+          </div>
+        </section>
+
+        <section class="use-case-section">
+          <div class="section-heading narrow">
+            <p class="section-kicker">Use Cases</p>
+            <h2>こんな人に向いています</h2>
+          </div>
+          <div class="use-case-grid">
+            <article class="glass-card">
+              <strong>AI に頻繁に画像を渡す</strong>
+              <p>Claude、Codex、ChatGPT に画面を投げる回数が多い人。</p>
+            </article>
+            <article class="glass-card">
+              <strong>Slack でデザインレビュー</strong>
+              <p>スクショを貼る、消す、また貼るのループが多いチーム。</p>
+            </article>
+            <article class="glass-card">
+              <strong>GitHub に画像を添付する</strong>
+              <p>Issue や PR にスクショを残すエンジニアや PM。</p>
+            </article>
+            <article class="glass-card">
+              <strong>macOS をきれいに使いたい</strong>
+              <p>デスクトップを一時ファイルの置き場にしたくない人。</p>
+            </article>
+          </div>
+        </section>
+
+        <section class="pricing-section" id="pricing">
+          <div class="pricing-card glass-card">
+            <p class="section-kicker">Pricing</p>
+            <h2>買い切り 300円</h2>
+            <p class="pricing-lead">
+              月額なし。必要な人だけ、気軽に使える価格にしました。
+            </p>
+            <div class="pricing-meta">
+              <span>macOS専用</span>
+              <span>Windows非対応</span>
+              <span>Developer ID署名 / notarized配布想定</span>
+            </div>
+            <a class="primary-button large" data-stripe-link href="https://buy.stripe.com/test_placeholder">
+              300円で購入
+            </a>
+            <p class="pricing-note">
+              Stripe 決済後、ダウンロードページへ案内します。Stripe のリンクは公開前に差し替えてください。
+            </p>
+          </div>
+        </section>
+
+        <section class="faq-section" id="faq">
+          <div class="section-heading narrow">
+            <p class="section-kicker">FAQ</p>
+            <h2>よくある質問</h2>
+          </div>
+          <div class="faq-list">
+            <details class="glass-card" open>
+              <summary>対応OSは？</summary>
+              <p>macOS 専用です。Windows では利用できません。公開時には対応OSの下限を明記してください。</p>
+            </details>
+            <details class="glass-card">
+              <summary>画面収録の許可は必要？</summary>
+              <p>はい。初回利用時に macOS の画面収録権限が必要です。</p>
+            </details>
+            <details class="glass-card">
+              <summary>Mac App Store ではないの？</summary>
+              <p>最初は LP からの直販を想定しています。購入後に notarized 済みの配布ファイルをダウンロードする形式です。</p>
+            </details>
+            <details class="glass-card">
+              <summary>アップデートは含まれる？</summary>
+              <p>初期販売では、少なくとも同一メジャー内アップデート込みにするのが自然です。公開時に方針を固定してください。</p>
+            </details>
+            <details class="glass-card">
+              <summary>返金はできる？</summary>
+              <p>個人開発なら、一定期間の柔軟な返金対応を FAQ に書いておくと安心感が出ます。</p>
+            </details>
+          </div>
+        </section>
+
+        <section class="final-cta glass-card">
+          <div>
+            <p class="section-kicker">Ready</p>
+            <h2>スクショ整理の小さなストレスを、今日で終わらせる。</h2>
+          </div>
+          <a class="primary-button" data-stripe-link href="https://buy.stripe.com/test_placeholder">300円で購入</a>
+        </section>
+      </main>
+    </div>
+
+    <script src="./script.js"></script>
+  </body>
+</html>
