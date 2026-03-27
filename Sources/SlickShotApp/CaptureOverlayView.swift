@@ -365,24 +365,25 @@ final class CaptureOverlayView: NSView {
 
     private static func outerReticlePath(in rect: CGRect) -> NSBezierPath {
         let path = NSBezierPath()
-        let cornerCut = min(max(min(rect.width, rect.height) * 0.065, 7), 14)
-        let lowerStepInset = min(max(rect.width * 0.09, 14), 24)
-        let lowerStepDrop = min(max(rect.height * 0.11, 12), 24)
-        let lowerStepWidth = min(max(rect.width * 0.13, 18), 34)
-        let bottomRightX = rect.maxX - cornerCut
-        let stepTopY = rect.minY + cornerCut + lowerStepDrop
-        let stepInnerX = bottomRightX - lowerStepInset
-        let stepBottomX = stepInnerX - lowerStepWidth
+        let cornerCut = min(max(min(rect.width, rect.height) * 0.06, 7), 13)
+        let sideTilt = min(max(rect.width * 0.035, 8), 16)
+        let stepOut = min(max(rect.width * 0.055, 10), 20)
+        let stepHeight = min(max(rect.height * 0.12, 16), 28)
+        let stepCenterY = rect.minY + (rect.height * 0.42)
+        let stepTopY = stepCenterY + (stepHeight / 2)
+        let stepBottomY = stepCenterY - (stepHeight / 2)
 
-        path.move(to: CGPoint(x: rect.minX + cornerCut, y: rect.maxY))
-        path.line(to: CGPoint(x: rect.maxX - cornerCut, y: rect.maxY))
-        path.line(to: CGPoint(x: rect.maxX, y: rect.maxY - cornerCut))
+        path.move(to: CGPoint(x: rect.minX + cornerCut + sideTilt, y: rect.maxY))
+        path.line(to: CGPoint(x: rect.maxX - cornerCut - sideTilt, y: rect.maxY))
+        path.line(to: CGPoint(x: rect.maxX - sideTilt, y: rect.maxY - cornerCut))
         path.line(to: CGPoint(x: rect.maxX, y: stepTopY))
-        path.line(to: CGPoint(x: stepInnerX, y: stepTopY))
-        path.line(to: CGPoint(x: stepInnerX, y: rect.minY + cornerCut))
-        path.line(to: CGPoint(x: stepBottomX, y: rect.minY))
-        path.line(to: CGPoint(x: rect.minX + cornerCut, y: rect.minY))
-        path.line(to: CGPoint(x: rect.minX, y: rect.minY + cornerCut))
+        path.line(to: CGPoint(x: rect.maxX + stepOut, y: stepTopY - cornerCut))
+        path.line(to: CGPoint(x: rect.maxX + stepOut, y: stepBottomY + cornerCut))
+        path.line(to: CGPoint(x: rect.maxX, y: stepBottomY))
+        path.line(to: CGPoint(x: rect.maxX - sideTilt, y: rect.minY + cornerCut))
+        path.line(to: CGPoint(x: rect.maxX - cornerCut - sideTilt, y: rect.minY))
+        path.line(to: CGPoint(x: rect.minX + cornerCut + sideTilt, y: rect.minY))
+        path.line(to: CGPoint(x: rect.minX + sideTilt, y: rect.minY + cornerCut))
         path.line(to: CGPoint(x: rect.minX, y: rect.maxY - cornerCut))
         path.close()
         return path
