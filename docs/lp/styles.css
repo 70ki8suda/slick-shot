@@ -100,12 +100,15 @@ body::before {
 
 .topnav {
   display: inline-flex;
+  align-items: center;
   gap: 22px;
 }
 
 .topnav a,
 .ghost-button,
 .secondary-button {
+  display: inline-flex;
+  align-items: center;
   color: var(--muted);
   text-decoration: none;
 }
