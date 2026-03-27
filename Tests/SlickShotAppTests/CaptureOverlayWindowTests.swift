@@ -41,6 +41,32 @@ struct CaptureOverlayWindowTests {
         let frontmostApp = frontmostProvider.frontmostApplication as? TestRunningApplication
         #expect(frontmostApp?.activateCallCount == 0)
     }
+
+    @MainActor
+    @Test func standardMode_keepsOverlayOutOfScreenRecordings() {
+        let window = CaptureOverlayWindow(
+            frame: CGRect(x: 0, y: 0, width: 100, height: 100),
+            presentationMode: .standard,
+            onSelection: { _ in },
+            onCancel: {}
+        )
+
+        #expect(window.level == .screenSaver)
+        #expect(window.sharingType == .none)
+    }
+
+    @MainActor
+    @Test func demoRecordingMode_usesRecordableWindowSettings() {
+        let window = CaptureOverlayWindow(
+            frame: CGRect(x: 0, y: 0, width: 100, height: 100),
+            presentationMode: .demoRecording,
+            onSelection: { _ in },
+            onCancel: {}
+        )
+
+        #expect(window.level == .statusBar)
+        #expect(window.sharingType == .readOnly)
+    }
 }
 
 @MainActor

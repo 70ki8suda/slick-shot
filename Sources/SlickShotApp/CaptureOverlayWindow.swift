@@ -33,6 +33,11 @@ struct NSScreenFramesProvider: ScreenFramesProviding {
     }
 }
 
+enum CaptureOverlayPresentationMode {
+    case standard
+    case demoRecording
+}
+
 @MainActor
 final class CaptureOverlayWindow: NSWindow, CaptureOverlaySession {
     private let overlayView: CaptureOverlayView
@@ -42,6 +47,7 @@ final class CaptureOverlayWindow: NSWindow, CaptureOverlaySession {
     init(
         frame: CGRect,
         frontmostProvider: FrontmostApplicationProviding = WorkspaceFrontmostApplicationProvider(),
+        presentationMode: CaptureOverlayPresentationMode = .standard,
         feedbackPlayer: CaptureFeedbackPlaying = NullCaptureFeedbackPlayer(),
         onSelection: @escaping (CGRect) -> Void,
         onCancel: @escaping () -> Void
@@ -61,8 +67,14 @@ final class CaptureOverlayWindow: NSWindow, CaptureOverlaySession {
         backgroundColor = .clear
         isOpaque = false
         hasShadow = false
-        level = .screenSaver
-        sharingType = .none
+        switch presentationMode {
+        case .standard:
+            level = .screenSaver
+            sharingType = .none
+        case .demoRecording:
+            level = .statusBar
+            sharingType = .readOnly
+        }
         collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .ignoresCycle, .transient]
         titleVisibility = .hidden
         titlebarAppearsTransparent = true
@@ -142,17 +154,20 @@ private final class CaptureOverlaySessionGroup: CaptureOverlaySession {
 struct LiveCaptureOverlaySessionFactory: CaptureOverlaySessionFactory {
     private let screenFramesProvider: ScreenFramesProviding
     private let feedbackPlayer: CaptureFeedbackPlaying
-    private let sessionBuilder: (CGRect, CaptureFeedbackPlaying, @escaping (CGRect) -> Void, @escaping () -> Void) -> CaptureOverlaySession
+    private let presentationModeProvider: () -> CaptureOverlayPresentationMode
+    private let sessionBuilder: (CGRect, CaptureOverlayPresentationMode, CaptureFeedbackPlaying, @escaping (CGRect) -> Void, @escaping () -> Void) -> CaptureOverlaySession
 
     init(
         screenFramesProvider: ScreenFramesProviding = NSScreenFramesProvider(),
         feedbackPlayer: CaptureFeedbackPlaying = NullCaptureFeedbackPlayer(),
-        sessionBuilder: @escaping (CGRect, CaptureFeedbackPlaying, @escaping (CGRect) -> Void, @escaping () -> Void) -> CaptureOverlaySession = { frame, feedbackPlayer, onSelection, onCancel in
-            CaptureOverlayWindow(frame: frame, feedbackPlayer: feedbackPlayer, onSelection: onSelection, onCancel: onCancel)
+        presentationModeProvider: @escaping () -> CaptureOverlayPresentationMode = { .standard },
+        sessionBuilder: @escaping (CGRect, CaptureOverlayPresentationMode, CaptureFeedbackPlaying, @escaping (CGRect) -> Void, @escaping () -> Void) -> CaptureOverlaySession = { frame, presentationMode, feedbackPlayer, onSelection, onCancel in
+            CaptureOverlayWindow(frame: frame, presentationMode: presentationMode, feedbackPlayer: feedbackPlayer, onSelection: onSelection, onCancel: onCancel)
         }
     ) {
         self.screenFramesProvider = screenFramesProvider
         self.feedbackPlayer = feedbackPlayer
+        self.presentationModeProvider = presentationModeProvider
         self.sessionBuilder = sessionBuilder
     }
 
@@ -161,11 +176,13 @@ struct LiveCaptureOverlaySessionFactory: CaptureOverlaySessionFactory {
         onCancel: @escaping () -> Void
     ) -> CaptureOverlaySession {
         let oneShotFeedbackPlayer = OneShotReticleFeedbackPlayer(base: feedbackPlayer)
+        let presentationMode = presentationModeProvider()
         let sessions = screenFramesProvider
             .screenFrames()
             .map { frame in
                 sessionBuilder(
                     frame,
+                    presentationMode,
                     oneShotFeedbackPlayer,
                     onSelection,
                     onCancel

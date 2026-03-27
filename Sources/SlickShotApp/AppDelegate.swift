@@ -13,6 +13,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var store: ScreenshotStore?
     private var feedbackPlayer: CaptureFeedbackPlaying?
     private var updateController: UpdateController?
+    private var demoCaptureModeStore: DemoCaptureModeStore?
     private var hotkeyConfiguration = HotkeyConfiguration()
 
     func applicationDidFinishLaunching(_ notification: Notification) {
@@ -22,6 +23,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let captureService = ScreenCaptureService()
         let feedbackPlayer = CaptureFeedbackPlayer()
         self.feedbackPlayer = feedbackPlayer
+        let demoCaptureModeStore = DemoCaptureModeStore()
+        self.demoCaptureModeStore = demoCaptureModeStore
         let updateController = UpdateController()
         self.updateController = updateController
         overlayController = ThumbnailOverlayController(store: store, feedbackPlayer: feedbackPlayer)
@@ -40,7 +43,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         captureCoordinator = CaptureCoordinator(
             store: store,
             captureService: captureService,
-            overlayFactory: LiveCaptureOverlaySessionFactory(feedbackPlayer: feedbackPlayer),
+            overlayFactory: LiveCaptureOverlaySessionFactory(
+                feedbackPlayer: feedbackPlayer,
+                presentationModeProvider: { [weak demoCaptureModeStore] in
+                    (demoCaptureModeStore?.isEnabled ?? false) ? .demoRecording : .standard
+                }
+            ),
             settingsWindowController: settingsWindowController,
             feedbackPlayer: feedbackPlayer
         )
@@ -48,8 +56,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             hotkeyDisplayStringProvider: { [weak self] in
                 self?.hotkeyConfiguration.displayString ?? HotkeyConfiguration.default.displayString
             },
+            demoCaptureModeProvider: { [weak demoCaptureModeStore] in
+                demoCaptureModeStore?.isEnabled ?? false
+            },
             onCaptureScreenshot: { [weak self] in
                 self?.startCapture()
+            },
+            onToggleDemoCaptureMode: { [weak self] in
+                self?.toggleDemoCaptureMode()
             },
             onCheckForUpdates: { [weak self] in
                 self?.updateController?.checkForUpdates()
@@ -98,6 +112,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private func applyHotkeyConfiguration(_ configuration: HotkeyConfiguration) {
         hotkeyConfiguration = configuration
         hotkeyMonitor?.update(configuration: configuration)
+        statusItemController?.install()
+    }
+
+    private func toggleDemoCaptureMode() {
+        guard let demoCaptureModeStore else { return }
+        demoCaptureModeStore.isEnabled.toggle()
         statusItemController?.install()
     }
 
