@@ -87,7 +87,7 @@ To build a direct-sale release artifact with Sparkle metadata embedded:
 ```bash
 SLICKSHOT_DEVELOPER_ID_APP="Developer ID Application: Your Name (TEAMID)" \
 SLICKSHOT_SPARKLE_PUBLIC_ED_KEY="YOUR_PUBLIC_ED25519_KEY" \
-SLICKSHOT_SU_FEED_URL="https://downloads.slickshot.app/appcast.xml" \
+SLICKSHOT_SU_FEED_URL="https://downloads.slick-shot.com/appcast.xml" \
 ./Scripts/build-release.sh
 ```
 
@@ -97,7 +97,7 @@ Optional notarization:
 SLICKSHOT_DEVELOPER_ID_APP="Developer ID Application: Your Name (TEAMID)" \
 SLICKSHOT_NOTARY_PROFILE="slickshot-notary" \
 SLICKSHOT_SPARKLE_PUBLIC_ED_KEY="YOUR_PUBLIC_ED25519_KEY" \
-SLICKSHOT_SU_FEED_URL="https://downloads.slickshot.app/appcast.xml" \
+SLICKSHOT_SU_FEED_URL="https://downloads.slick-shot.com/appcast.xml" \
 ./Scripts/build-release.sh
 ```
 

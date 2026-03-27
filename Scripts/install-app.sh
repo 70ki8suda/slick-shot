@@ -17,7 +17,7 @@ KEYCHAIN_PATH="$HOME/Library/Keychains/slickshot-signing.keychain-db"
 KEYCHAIN_PASSWORD="${SLICKSHOT_KEYCHAIN_PASSWORD:-slickshot-local-signing}"
 IDENTITY_NAME="${CODESIGN_IDENTITY:-SlickShot Local Signing}"
 P12_PASSWORD="slickshot-export"
-SPARKLE_FEED_URL="${SLICKSHOT_SU_FEED_URL:-https://downloads.slickshot.app/appcast.xml}"
+SPARKLE_FEED_URL="${SLICKSHOT_SU_FEED_URL:-https://downloads.slick-shot.com/appcast.xml}"
 SPARKLE_PUBLIC_ED_KEY="${SLICKSHOT_SPARKLE_PUBLIC_ED_KEY:-REPLACE_WITH_SPARKLE_PUBLIC_ED25519_KEY}"
 
 mkdir -p "$HOME/Applications"

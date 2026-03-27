@@ -13,7 +13,7 @@ struct AppBundleMetadataTests {
     }
 
     @Test func bundleMetadata_includesSparkleDistributionDefaults() {
-        #expect(AppBundleMetadata.sparkleFeedURL == "https://downloads.slickshot.app/appcast.xml")
+        #expect(AppBundleMetadata.sparkleFeedURL == "https://downloads.slick-shot.com/appcast.xml")
         #expect(AppBundleMetadata.sparklePublicEDKey == "REPLACE_WITH_SPARKLE_PUBLIC_ED25519_KEY")
     }
 
