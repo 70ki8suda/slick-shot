@@ -152,6 +152,8 @@ final class CaptureOverlayView: NSView {
         outerFrameLayer.lineWidth = 1.2
         outerFrameLayer.lineCap = .round
         outerFrameLayer.lineJoin = .round
+        outerFrameLayer.strokeStart = 0
+        outerFrameLayer.strokeEnd = 1
         outerFrameLayer.opacity = 0
 
         layer?.addSublayer(lagGlowLayer)
@@ -167,6 +169,8 @@ final class CaptureOverlayView: NSView {
             outerFrameLayer.opacity = 0
             lagGlowLayer.path = nil
             outerFrameLayer.path = nil
+            outerFrameLayer.strokeStart = 0
+            outerFrameLayer.strokeEnd = 1
             CATransaction.commit()
             return
         }
@@ -180,6 +184,8 @@ final class CaptureOverlayView: NSView {
             outerFrameLayer.opacity = 0
             lagGlowLayer.path = nil
             outerFrameLayer.path = nil
+            outerFrameLayer.strokeStart = 0
+            outerFrameLayer.strokeEnd = 1
             CATransaction.commit()
             return
         }
@@ -224,9 +230,42 @@ final class CaptureOverlayView: NSView {
             CATransaction.setDisableActions(true)
             self.outerFrameLayer.opacity = 1
             CATransaction.commit()
+            self.animateOuterFrameReveal(duration: 0.4)
         }
         pendingOuterFrameReveal = workItem
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.12, execute: workItem)
+    }
+
+    private func animateOuterFrameReveal(duration: CFTimeInterval) {
+        outerFrameLayer.removeAnimation(forKey: "outerFrameStrokeStart")
+        outerFrameLayer.removeAnimation(forKey: "outerFrameStrokeEnd")
+
+        CATransaction.begin()
+        CATransaction.setDisableActions(true)
+        outerFrameLayer.strokeStart = 0.5
+        outerFrameLayer.strokeEnd = 0.5
+        CATransaction.commit()
+
+        let startAnimation = CABasicAnimation(keyPath: "strokeStart")
+        startAnimation.fromValue = 0.5
+        startAnimation.toValue = 0
+        startAnimation.duration = duration
+        startAnimation.timingFunction = reticleTiming
+
+        let endAnimation = CABasicAnimation(keyPath: "strokeEnd")
+        endAnimation.fromValue = 0.5
+        endAnimation.toValue = 1
+        endAnimation.duration = duration
+        endAnimation.timingFunction = reticleTiming
+
+        CATransaction.begin()
+        CATransaction.setDisableActions(true)
+        outerFrameLayer.strokeStart = 0
+        outerFrameLayer.strokeEnd = 1
+        CATransaction.commit()
+
+        outerFrameLayer.add(startAnimation, forKey: "outerFrameStrokeStart")
+        outerFrameLayer.add(endAnimation, forKey: "outerFrameStrokeEnd")
     }
 
     private func animateLineExpansion(for layer: CAShapeLayer, duration: CFTimeInterval) {
@@ -262,6 +301,8 @@ final class CaptureOverlayView: NSView {
     }
 
     private func cancelReticleAnimations() {
+        outerFrameLayer.removeAnimation(forKey: "outerFrameStrokeStart")
+        outerFrameLayer.removeAnimation(forKey: "outerFrameStrokeEnd")
         [topEdgeLayer, bottomEdgeLayer, leftEdgeLayer, rightEdgeLayer].forEach {
             $0.removeAnimation(forKey: "reticleStrokeStart")
             $0.removeAnimation(forKey: "reticleStrokeEnd")
@@ -324,8 +365,8 @@ final class CaptureOverlayView: NSView {
         let horizontalInset = min(max(rect.width * 0.09, 16), 26)
         let verticalInset = min(max(rect.height * 0.09, 12), 22)
         let cornerCut = min(max(min(rect.width, rect.height) * 0.055, 8), 12)
-        let stepTopY = rect.minY + rect.height * 0.34
-        let stepBottomY = rect.minY + rect.height * 0.14
+        let stepTopY = rect.minY + rect.height * 0.28
+        let stepBottomY = rect.minY + rect.height * 0.08
 
         let leftX = rect.minX - horizontalInset
         let rightX = rect.maxX + horizontalInset
