@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>SlickShot | 返金フォーム</title>
+    <meta name="description" content="SlickShot の返金申請フォームです。" />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div class="page-shell">
+      <header class="topbar">
+        <a class="brand" href="./index.html">
+          <span class="brand-mark">S</span>
+          <span class="brand-copy">
+            <strong>SlickShot</strong>
+            <span>macOS Screenshot Buffer</span>
+          </span>
+        </a>
+        <nav class="topnav">
+          <a href="./index.html#product">特徴</a>
+          <a href="./index.html#pricing">価格</a>
+          <a href="./index.html#faq">FAQ</a>
+          <a href="./index.html#developer">開発者</a>
+        </nav>
+        <a class="ghost-button" href="./index.html">LPに戻る</a>
+      </header>
+
+      <main class="thanks-shell">
+        <section class="thanks-card glass-card">
+          <p class="section-kicker">Refund</p>
+          <h1>返金フォーム</h1>
+          <p class="hero-lead">
+            合わなかった場合は全員返金します。理由の説明は不要です。購入時のメールアドレスを入力して送信すると、返金依頼メールの下書きが開きます。
+          </p>
+
+          <form class="refund-form" data-refund-form>
+            <label class="form-field">
+              <span>購入時のメールアドレス</span>
+              <input type="email" name="email" placeholder="you@example.com" required />
+            </label>
+            <label class="form-field">
+              <span>メモ（任意）</span>
+              <textarea name="note" rows="5" placeholder="任意です。空欄でも返金します。"></textarea>
+            </label>
+            <div class="cta-row">
+              <button class="primary-button" type="submit">返金依頼メールを作成</button>
+              <a class="secondary-button" href="https://x.com/70ki8suda" target="_blank" rel="noreferrer">開発者Xを見る</a>
+            </div>
+          </form>
+        </section>
+      </main>
+    </div>
+
+    <script src="./script.js"></script>
+  </body>
+</html>
