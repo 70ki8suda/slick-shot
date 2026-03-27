@@ -156,7 +156,6 @@ final class CaptureOverlayView: NSView {
 
         layer?.addSublayer(lagGlowLayer)
         layer?.addSublayer(outerFrameLayer)
-        edgeLayers.forEach { layer?.addSublayer($0) }
     }
 
     private func updateReticleLayers(animated: Bool) {
@@ -166,24 +165,8 @@ final class CaptureOverlayView: NSView {
             CATransaction.setDisableActions(true)
             lagGlowLayer.opacity = 0
             outerFrameLayer.opacity = 0
-            topEdgeLayer.opacity = 0
-            bottomEdgeLayer.opacity = 0
-            leftEdgeLayer.opacity = 0
-            rightEdgeLayer.opacity = 0
             lagGlowLayer.path = nil
             outerFrameLayer.path = nil
-            topEdgeLayer.path = nil
-            bottomEdgeLayer.path = nil
-            leftEdgeLayer.path = nil
-            rightEdgeLayer.path = nil
-            topEdgeLayer.strokeStart = 0
-            topEdgeLayer.strokeEnd = 1
-            bottomEdgeLayer.strokeStart = 0
-            bottomEdgeLayer.strokeEnd = 1
-            leftEdgeLayer.strokeStart = 0
-            leftEdgeLayer.strokeEnd = 1
-            rightEdgeLayer.strokeStart = 0
-            rightEdgeLayer.strokeEnd = 1
             CATransaction.commit()
             return
         }
@@ -195,44 +178,23 @@ final class CaptureOverlayView: NSView {
             CATransaction.setDisableActions(true)
             lagGlowLayer.opacity = 0
             outerFrameLayer.opacity = 0
-            topEdgeLayer.opacity = 0
-            bottomEdgeLayer.opacity = 0
-            leftEdgeLayer.opacity = 0
-            rightEdgeLayer.opacity = 0
             lagGlowLayer.path = nil
             outerFrameLayer.path = nil
-            topEdgeLayer.path = nil
-            bottomEdgeLayer.path = nil
-            leftEdgeLayer.path = nil
-            rightEdgeLayer.path = nil
             CATransaction.commit()
             return
         }
         let outerFramePath = Self.outerReticlePath(in: outerRect).cgPath
-        let edgePaths = Self.edgePaths(in: outerRect, inset: 24)
 
         CATransaction.begin()
         CATransaction.setDisableActions(true)
         lagGlowLayer.path = outerFramePath
         outerFrameLayer.path = outerFramePath
-        topEdgeLayer.path = edgePaths.top
-        bottomEdgeLayer.path = edgePaths.bottom
-        leftEdgeLayer.path = edgePaths.left
-        rightEdgeLayer.path = edgePaths.right
         lagGlowLayer.opacity = 0
         outerFrameLayer.opacity = animated ? 0 : 1
-        topEdgeLayer.opacity = 1
-        bottomEdgeLayer.opacity = 1
-        leftEdgeLayer.opacity = 1
-        rightEdgeLayer.opacity = 1
         CATransaction.commit()
 
         if animated {
             scheduleOuterFrameReveal()
-            animateLineExpansion(for: topEdgeLayer, duration: 0.41)
-            animateLineExpansion(for: bottomEdgeLayer, duration: 0.41)
-            animateLineExpansion(for: leftEdgeLayer, duration: 0.41)
-            animateLineExpansion(for: rightEdgeLayer, duration: 0.41)
         }
     }
 
@@ -364,8 +326,8 @@ final class CaptureOverlayView: NSView {
         let cornerCut = min(max(min(rect.width, rect.height) * 0.055, 8), 12)
         let sideLean = min(max(rect.width * 0.012, 2), 6)
         let stepOut = min(max(rect.width * 0.055, 10), 20)
-        let stepTopY = rect.minY + rect.height * 0.57
-        let stepBottomY = rect.minY + rect.height * 0.25
+        let stepTopY = rect.minY + rect.height * 0.3
+        let stepBottomY = rect.minY + rect.height * 0.12
 
         let leftXTop = rect.minX - horizontalInset
         let leftXBottom = leftXTop + sideLean
@@ -388,32 +350,6 @@ final class CaptureOverlayView: NSView {
         path.line(to: CGPoint(x: leftXTop, y: topY - cornerCut))
         path.close()
         return path
-    }
-
-    private static func edgePaths(in rect: CGRect, inset: CGFloat) -> (top: CGPath, bottom: CGPath, left: CGPath, right: CGPath) {
-        let horizontalInset = min(inset, rect.width * 0.3)
-        let verticalInset = min(inset, rect.height * 0.3)
-
-        func horizontalPath(y: CGFloat) -> CGPath {
-            let path = NSBezierPath()
-            path.move(to: CGPoint(x: rect.minX + horizontalInset, y: y))
-            path.line(to: CGPoint(x: rect.maxX - horizontalInset, y: y))
-            return path.cgPath
-        }
-
-        func verticalPath(x: CGFloat) -> CGPath {
-            let path = NSBezierPath()
-            path.move(to: CGPoint(x: x, y: rect.minY + verticalInset))
-            path.line(to: CGPoint(x: x, y: rect.maxY - verticalInset))
-            return path.cgPath
-        }
-
-        return (
-            top: horizontalPath(y: rect.maxY),
-            bottom: horizontalPath(y: rect.minY),
-            left: verticalPath(x: rect.minX),
-            right: verticalPath(x: rect.maxX)
-        )
     }
 
 }
