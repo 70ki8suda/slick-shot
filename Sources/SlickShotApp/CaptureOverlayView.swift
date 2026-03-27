@@ -331,20 +331,19 @@ final class CaptureOverlayView: NSView {
 
         let leftXTop = rect.minX - horizontalInset
         let leftXBottom = leftXTop + sideLean
-        let rightXTop = rect.maxX + horizontalInset
-        let rightXBottom = rightXTop - sideLean
+        let rightX = rect.maxX + horizontalInset
         let topY = rect.maxY + verticalInset
         let bottomY = rect.minY - verticalInset
 
         path.move(to: CGPoint(x: leftXTop + cornerCut, y: topY))
-        path.line(to: CGPoint(x: rightXTop - cornerCut, y: topY))
-        path.line(to: CGPoint(x: rightXTop, y: topY - cornerCut))
-        path.line(to: CGPoint(x: rightXTop + sideLean, y: stepTopY))
-        path.line(to: CGPoint(x: rightXTop + stepOut, y: stepTopY - cornerCut))
-        path.line(to: CGPoint(x: rightXTop + stepOut, y: stepBottomY + cornerCut))
-        path.line(to: CGPoint(x: rightXBottom + sideLean, y: stepBottomY))
-        path.line(to: CGPoint(x: rightXBottom, y: bottomY + cornerCut))
-        path.line(to: CGPoint(x: rightXBottom - cornerCut, y: bottomY))
+        path.line(to: CGPoint(x: rightX - cornerCut, y: topY))
+        path.line(to: CGPoint(x: rightX, y: topY - cornerCut))
+        path.line(to: CGPoint(x: rightX, y: stepTopY))
+        path.line(to: CGPoint(x: rightX + stepOut, y: stepTopY - cornerCut))
+        path.line(to: CGPoint(x: rightX + stepOut, y: stepBottomY + cornerCut))
+        path.line(to: CGPoint(x: rightX, y: stepBottomY))
+        path.line(to: CGPoint(x: rightX, y: bottomY + cornerCut))
+        path.line(to: CGPoint(x: rightX - cornerCut, y: bottomY))
         path.line(to: CGPoint(x: leftXBottom + cornerCut, y: bottomY))
         path.line(to: CGPoint(x: leftXBottom, y: bottomY + cornerCut))
         path.line(to: CGPoint(x: leftXTop, y: topY - cornerCut))
