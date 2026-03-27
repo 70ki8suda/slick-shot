@@ -98,6 +98,30 @@ final class CaptureOverlayWindow: NSWindow, CaptureOverlaySession {
 }
 
 @MainActor
+private final class OneShotReticleFeedbackPlayer: CaptureFeedbackPlaying {
+    private let base: CaptureFeedbackPlaying
+    private var hasPlayedReticleReveal = false
+
+    init(base: CaptureFeedbackPlaying) {
+        self.base = base
+    }
+
+    func playCaptureCompleted() {
+        base.playCaptureCompleted()
+    }
+
+    func playDropCompleted() {
+        base.playDropCompleted()
+    }
+
+    func playReticleReveal() {
+        guard hasPlayedReticleReveal == false else { return }
+        hasPlayedReticleReveal = true
+        base.playReticleReveal()
+    }
+}
+
+@MainActor
 private final class CaptureOverlaySessionGroup: CaptureOverlaySession {
     let sessions: [CaptureOverlaySession]
 
@@ -136,12 +160,13 @@ struct LiveCaptureOverlaySessionFactory: CaptureOverlaySessionFactory {
         onSelection: @escaping (CGRect) -> Void,
         onCancel: @escaping () -> Void
     ) -> CaptureOverlaySession {
+        let oneShotFeedbackPlayer = OneShotReticleFeedbackPlayer(base: feedbackPlayer)
         let sessions = screenFramesProvider
             .screenFrames()
             .map { frame in
                 CaptureOverlayWindow(
                     frame: frame,
-                    feedbackPlayer: feedbackPlayer,
+                    feedbackPlayer: oneShotFeedbackPlayer,
                     onSelection: onSelection,
                     onCancel: onCancel
                 )
