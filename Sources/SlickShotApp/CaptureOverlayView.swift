@@ -193,7 +193,7 @@ final class CaptureOverlayView: NSView {
             return
         }
 
-        let outerRect = displayedReticleRect.insetBy(dx: -10, dy: -10)
+        let outerRect = displayedReticleRect.insetBy(dx: -6, dy: -6)
         guard shouldShowDecoratedReticle(for: outerRect) else {
             cancelReticleAnimations()
             CATransaction.begin()
@@ -224,8 +224,12 @@ final class CaptureOverlayView: NSView {
         outerFrameLayer.opacity = animated ? 0 : 1
         for (index, segmentLayer) in outerFrameSegmentLayers.enumerated() {
             segmentLayer.path = index < outerFrameSegmentPaths.count ? outerFrameSegmentPaths[index] : nil
-            segmentLayer.opacity = index < outerFrameSegmentPaths.count ? 1 : 0
-            if !animated {
+            if animated, index < outerFrameSegmentPaths.count {
+                segmentLayer.opacity = 0
+                segmentLayer.strokeStart = 0.5
+                segmentLayer.strokeEnd = 0.5
+            } else {
+                segmentLayer.opacity = index < outerFrameSegmentPaths.count ? 1 : 0
                 segmentLayer.strokeStart = 0
                 segmentLayer.strokeEnd = 1
             }
@@ -273,8 +277,6 @@ final class CaptureOverlayView: NSView {
             CATransaction.begin()
             CATransaction.setDisableActions(true)
             segmentLayer.opacity = 1
-            segmentLayer.strokeStart = 0.5
-            segmentLayer.strokeEnd = 0.5
             CATransaction.commit()
 
             let startAnimation = CABasicAnimation(keyPath: "strokeStart")
@@ -407,17 +409,20 @@ final class CaptureOverlayView: NSView {
     }
 
     private static func outerReticlePoints(in rect: CGRect) -> [CGPoint] {
-        let horizontalInset = min(max(rect.width * 0.07, 12), 20)
-        let verticalInset = min(max(rect.height * 0.07, 10), 18)
-        let cornerCut = min(max(min(rect.width, rect.height) * 0.055, 8), 12)
-        let stepTopY = rect.minY + rect.height * 0.21
-        let stepBottomY = rect.minY + rect.height * 0.035
+        let horizontalInset = min(max(rect.width * 0.04, 6), 10)
+        let verticalInset = min(max(rect.height * 0.04, 6), 10)
+        let cornerCut = min(max(min(rect.width, rect.height) * 0.05, 8), 11)
+        let stepWidth: CGFloat = 10
+        let stepHeight: CGFloat = 24
+        let stepBottomOffset: CGFloat = 10
 
         let leftX = rect.minX - horizontalInset
         let rightX = rect.maxX + horizontalInset
-        let outerStepX = rightX + cornerCut
+        let outerStepX = rightX + stepWidth
         let topY = rect.maxY + verticalInset
         let bottomY = rect.minY - verticalInset
+        let stepBottomY = bottomY + stepBottomOffset
+        let stepTopY = stepBottomY + stepHeight
 
         return [
             CGPoint(x: leftX + cornerCut, y: topY),
