@@ -326,6 +326,7 @@ final class CaptureOverlayView: NSView {
         let cornerCut = min(max(min(rect.width, rect.height) * 0.055, 8), 12)
         let sideLean = min(max(rect.width * 0.012, 2), 6)
         let stepOut = min(max(rect.width * 0.055, 10), 20)
+        let stepChamfer = cornerCut
         let stepTopY = rect.minY + rect.height * 0.3
         let stepBottomY = rect.minY + rect.height * 0.12
 
@@ -339,8 +340,10 @@ final class CaptureOverlayView: NSView {
         path.line(to: CGPoint(x: rightX - cornerCut, y: topY))
         path.line(to: CGPoint(x: rightX, y: topY - cornerCut))
         path.line(to: CGPoint(x: rightX, y: stepTopY))
-        path.line(to: CGPoint(x: rightX + stepOut, y: stepTopY - cornerCut))
-        path.line(to: CGPoint(x: rightX + stepOut, y: stepBottomY + cornerCut))
+        path.line(to: CGPoint(x: rightX + stepChamfer, y: stepTopY - stepChamfer))
+        path.line(to: CGPoint(x: rightX + stepOut, y: stepTopY - stepChamfer))
+        path.line(to: CGPoint(x: rightX + stepOut, y: stepBottomY + stepChamfer))
+        path.line(to: CGPoint(x: rightX + stepChamfer, y: stepBottomY))
         path.line(to: CGPoint(x: rightX, y: stepBottomY))
         path.line(to: CGPoint(x: rightX, y: bottomY + cornerCut))
         path.line(to: CGPoint(x: rightX - cornerCut, y: bottomY))
