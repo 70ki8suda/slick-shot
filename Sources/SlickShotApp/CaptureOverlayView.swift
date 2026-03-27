@@ -60,6 +60,7 @@ final class CaptureOverlayView: NSView {
         startPoint = point
         currentPoint = point
         pendingReticleUpdate?.cancel()
+        cancelReticleAnimations()
         displayedReticleRect = nil
         updateReticleLayers(animated: false)
         needsDisplay = true
@@ -67,6 +68,7 @@ final class CaptureOverlayView: NSView {
 
     override func mouseDragged(with event: NSEvent) {
         currentPoint = convert(event.locationInWindow, from: nil)
+        cancelReticleAnimations()
         displayedReticleRect = nil
         updateReticleLayers(animated: false)
         scheduleReticleUpdate()
@@ -164,6 +166,7 @@ final class CaptureOverlayView: NSView {
 
     private func updateReticleLayers(animated: Bool) {
         guard let displayedReticleRect else {
+            cancelReticleAnimations()
             CATransaction.begin()
             CATransaction.setDisableActions(true)
             lagGlowLayer.opacity = 0
@@ -192,6 +195,7 @@ final class CaptureOverlayView: NSView {
 
         let outerRect = displayedReticleRect.insetBy(dx: -10, dy: -10)
         guard shouldShowDecoratedReticle(for: outerRect) else {
+            cancelReticleAnimations()
             CATransaction.begin()
             CATransaction.setDisableActions(true)
             lagGlowLayer.opacity = 0
@@ -284,6 +288,13 @@ final class CaptureOverlayView: NSView {
 
         layer.add(startAnimation, forKey: "reticleStrokeStart")
         layer.add(endAnimation, forKey: "reticleStrokeEnd")
+    }
+
+    private func cancelReticleAnimations() {
+        [topEdgeLayer, bottomEdgeLayer, leftEdgeLayer, rightEdgeLayer].forEach {
+            $0.removeAnimation(forKey: "reticleStrokeStart")
+            $0.removeAnimation(forKey: "reticleStrokeEnd")
+        }
     }
 
     private func shouldShowDecoratedReticle(for rect: CGRect) -> Bool {
