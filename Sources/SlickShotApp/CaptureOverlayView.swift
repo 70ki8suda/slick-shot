@@ -11,6 +11,9 @@ final class CaptureOverlayView: NSView {
     private var displayedReticleRect: CGRect?
     private var pendingReticleUpdate: DispatchWorkItem?
     private var pendingOuterFrameReveal: DispatchWorkItem?
+    private var pendingGlassRingReveal: DispatchWorkItem?
+    private let glassRingView = NSVisualEffectView()
+    private let glassRingTintView = NSView()
     private let topEdgeLayer = CAShapeLayer()
     private let bottomEdgeLayer = CAShapeLayer()
     private let leftEdgeLayer = CAShapeLayer()
@@ -24,6 +27,7 @@ final class CaptureOverlayView: NSView {
     override init(frame frameRect: NSRect) {
         super.init(frame: frameRect)
         wantsLayer = true
+        configureGlassRingView()
         configureReticleLayers()
     }
 
@@ -33,6 +37,11 @@ final class CaptureOverlayView: NSView {
 
     override var acceptsFirstResponder: Bool {
         true
+    }
+
+    override func layout() {
+        super.layout()
+        glassRingView.frame = bounds
     }
 
     override func draw(_ dirtyRect: NSRect) {
@@ -51,6 +60,7 @@ final class CaptureOverlayView: NSView {
         currentPoint = point
         pendingReticleUpdate?.cancel()
         pendingOuterFrameReveal?.cancel()
+        pendingGlassRingReveal?.cancel()
         cancelReticleAnimations()
         displayedReticleRect = nil
         updateReticleLayers(animated: false)
@@ -60,6 +70,7 @@ final class CaptureOverlayView: NSView {
     override func mouseDragged(with event: NSEvent) {
         currentPoint = convert(event.locationInWindow, from: nil)
         pendingOuterFrameReveal?.cancel()
+        pendingGlassRingReveal?.cancel()
         cancelReticleAnimations()
         displayedReticleRect = nil
         updateReticleLayers(animated: false)
@@ -74,6 +85,7 @@ final class CaptureOverlayView: NSView {
             currentPoint = nil
             pendingReticleUpdate?.cancel()
             pendingOuterFrameReveal?.cancel()
+            pendingGlassRingReveal?.cancel()
             displayedReticleRect = nil
             updateReticleLayers(animated: false)
             needsDisplay = true
@@ -170,8 +182,30 @@ final class CaptureOverlayView: NSView {
         outerFrameSegmentLayers.forEach { layer?.addSublayer($0) }
     }
 
+    private func configureGlassRingView() {
+        glassRingView.frame = bounds
+        glassRingView.autoresizingMask = [.width, .height]
+        glassRingView.blendingMode = .behindWindow
+        glassRingView.material = .hudWindow
+        glassRingView.state = .active
+        glassRingView.isEmphasized = false
+        glassRingView.wantsLayer = true
+        glassRingView.layer?.cornerCurve = .continuous
+        glassRingView.alphaValue = 0
+        glassRingView.isHidden = true
+
+        glassRingTintView.frame = glassRingView.bounds
+        glassRingTintView.autoresizingMask = [.width, .height]
+        glassRingTintView.wantsLayer = true
+        glassRingTintView.layer?.backgroundColor = NSColor(calibratedRed: 0.78, green: 0.95, blue: 1, alpha: 0.04).cgColor
+
+        glassRingView.addSubview(glassRingTintView)
+        addSubview(glassRingView, positioned: .below, relativeTo: nil)
+    }
+
     private func updateReticleLayers(animated: Bool) {
         guard let displayedReticleRect else {
+            hideGlassRing()
             cancelReticleAnimations()
             CATransaction.begin()
             CATransaction.setDisableActions(true)
@@ -193,6 +227,7 @@ final class CaptureOverlayView: NSView {
 
         let outerRect = displayedReticleRect.insetBy(dx: -6, dy: -6)
         guard shouldShowDecoratedReticle(for: outerRect) else {
+            hideGlassRing()
             cancelReticleAnimations()
             CATransaction.begin()
             CATransaction.setDisableActions(true)
@@ -213,6 +248,7 @@ final class CaptureOverlayView: NSView {
         }
         let outerFramePoints = Self.outerReticlePoints(in: outerRect)
         let outerFrameSegmentPaths = Self.outerReticleSegmentPaths(points: outerFramePoints)
+        updateGlassRingMask(outerRect: outerRect, innerRect: displayedReticleRect)
 
         CATransaction.begin()
         CATransaction.setDisableActions(true)
@@ -236,6 +272,9 @@ final class CaptureOverlayView: NSView {
 
         if animated {
             scheduleOuterFrameReveal()
+            scheduleGlassRingReveal()
+        } else {
+            hideGlassRing()
         }
     }
 
@@ -265,6 +304,42 @@ final class CaptureOverlayView: NSView {
         }
         pendingOuterFrameReveal = workItem
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.12, execute: workItem)
+    }
+
+    private func scheduleGlassRingReveal() {
+        pendingGlassRingReveal?.cancel()
+        let workItem = DispatchWorkItem { [weak self] in
+            guard let self, self.selectionRect != nil, self.displayedReticleRect != nil else { return }
+            self.revealGlassRing()
+        }
+        pendingGlassRingReveal = workItem
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.58, execute: workItem)
+    }
+
+    private func updateGlassRingMask(outerRect: CGRect, innerRect: CGRect) {
+        let outerPath = Self.outerReticlePath(in: outerRect)
+        outerPath.appendRect(innerRect)
+        outerPath.windingRule = .evenOdd
+
+        let maskLayer = CAShapeLayer()
+        maskLayer.frame = bounds
+        maskLayer.path = outerPath.cgPath
+        maskLayer.fillRule = .evenOdd
+        glassRingView.layer?.mask = maskLayer
+    }
+
+    private func revealGlassRing() {
+        glassRingView.isHidden = false
+        glassRingView.animator().alphaValue = 0.5
+    }
+
+    private func hideGlassRing() {
+        NSAnimationContext.runAnimationGroup { context in
+            context.duration = 0
+            glassRingView.animator().alphaValue = 0
+        }
+        glassRingView.isHidden = true
+        glassRingView.layer?.mask = nil
     }
 
     private func animateOuterFrameReveal(duration: CFTimeInterval) {
