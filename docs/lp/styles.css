@@ -620,6 +620,37 @@ h3 {
   gap: 18px;
 }
 
+.thanks-shell,
+.download-layout {
+  padding: 96px 0 48px;
+}
+
+.thanks-card,
+.download-card {
+  border-radius: 34px;
+  padding: 40px;
+}
+
+.thanks-card {
+  max-width: 760px;
+  margin: 0 auto;
+}
+
+.download-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(320px, 0.85fr);
+  gap: 24px;
+  align-items: start;
+}
+
+.instruction-list {
+  margin: 0;
+  padding-left: 20px;
+  color: var(--muted);
+  font-size: 17px;
+  line-height: 1.8;
+}
+
 @keyframes drawFrame {
   0%,
   10% {
@@ -649,7 +680,8 @@ h3 {
   .feature-grid,
   .experience-grid,
   .use-case-grid,
-  .final-cta {
+  .final-cta,
+  .download-layout {
     grid-template-columns: 1fr;
   }
 
@@ -715,6 +747,8 @@ h3 {
   .story-step,
   .split-panel,
   .final-cta,
+  .thanks-card,
+  .download-card,
   .faq-list details,
   .experience-grid article,
   .use-case-grid article {

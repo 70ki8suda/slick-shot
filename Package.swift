@@ -10,13 +10,19 @@ let package = Package(
     products: [
         .executable(name: "SlickShotApp", targets: ["SlickShotApp"])
     ],
+    dependencies: [
+        .package(url: "https://github.com/sparkle-project/Sparkle", from: "2.7.0")
+    ],
     targets: [
         .target(
             name: "SlickShotCore"
         ),
         .executableTarget(
             name: "SlickShotApp",
-            dependencies: ["SlickShotCore"],
+            dependencies: [
+                "SlickShotCore",
+                .product(name: "Sparkle", package: "Sparkle")
+            ],
             linkerSettings: [
                 .linkedFramework("AVFoundation"),
                 .linkedFramework("Carbon")

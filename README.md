@@ -4,6 +4,23 @@ SlickShot is a macOS menu bar utility for transient screenshots.
 
 It uses the native macOS interactive region capture flow, then routes the result into a temporary HUD-style thumbnail instead of writing files to the Desktop.
 
+## Direct Sale + Auto Updates
+
+SlickShot is set up for a direct-sale flow:
+
+- LP + Stripe Checkout for the purchase
+- `thanks.html` / `download.html` pages for the post-purchase handoff
+- Sparkle for in-app automatic updates
+- Developer ID signing + notarized release artifacts for website distribution
+
+Relevant files:
+
+- `docs/lp/index.html`
+- `docs/lp/thanks.html`
+- `docs/lp/download.html`
+- `Scripts/build-release.sh`
+- `Scripts/generate-appcast.sh`
+
 ## What It Does
 
 - Trigger native macOS region capture from a global hotkey or menu bar action.
@@ -24,6 +41,7 @@ Install a Raycast-launchable app bundle into `~/Applications`:
 
 This creates `~/Applications/SlickShot.app`.
 The installer also creates a local signing identity in `~/Library/Keychains/slickshot-signing.keychain-db` so Screen Recording permission survives app reinstalls during development.
+When `SLICKSHOT_SU_FEED_URL` and `SLICKSHOT_SPARKLE_PUBLIC_ED_KEY` are configured, the app bundle also includes Sparkle update metadata.
 
 After that you can:
 
@@ -62,6 +80,41 @@ Run tests:
 swift test
 ```
 
+## Release
+
+To build a direct-sale release artifact with Sparkle metadata embedded:
+
+```bash
+SLICKSHOT_DEVELOPER_ID_APP="Developer ID Application: Your Name (TEAMID)" \
+SLICKSHOT_SPARKLE_PUBLIC_ED_KEY="YOUR_PUBLIC_ED25519_KEY" \
+SLICKSHOT_SU_FEED_URL="https://downloads.slickshot.app/appcast.xml" \
+./Scripts/build-release.sh
+```
+
+Optional notarization:
+
+```bash
+SLICKSHOT_DEVELOPER_ID_APP="Developer ID Application: Your Name (TEAMID)" \
+SLICKSHOT_NOTARY_PROFILE="slickshot-notary" \
+SLICKSHOT_SPARKLE_PUBLIC_ED_KEY="YOUR_PUBLIC_ED25519_KEY" \
+SLICKSHOT_SU_FEED_URL="https://downloads.slickshot.app/appcast.xml" \
+./Scripts/build-release.sh
+```
+
+The release script produces `dist/SlickShot.zip`.
+
+To generate or refresh the Sparkle appcast feed after placing release archives in `dist/updates`:
+
+```bash
+./Scripts/generate-appcast.sh /Users/yasudanaoki/Desktop/slick-shot/dist/updates
+```
+
+For direct sales, wire the LP CTA to your Stripe Payment Link and use:
+
+- Stripe success URL -> `docs/lp/thanks.html`
+- Download CTA -> your hosted `SlickShot.zip` or `SlickShot.dmg`
+- Sparkle `SUFeedURL` -> your hosted `appcast.xml`
+
 ## Hotkey
 
 The default global shortcut is `Control-Option-Command-S`.
@@ -70,8 +123,8 @@ SlickShot stores the configured shortcut in `UserDefaults` and falls back to the
 
 ## Current Limitations
 
-- The app is signed with a local self-managed development identity, not a notarized release certificate.
+- The development installer uses a local self-managed signing identity; shipping builds still require your real Developer ID certificate.
 - Screen Recording permission still needs to be granted manually in macOS.
 - Drag-and-drop behavior has automated coverage for temp-file lifecycle, but target-app acceptance is still best verified manually in apps like Slack.
 - The capture selection UI is intentionally using the native macOS overlay right now. A custom SlickShot capture HUD is planned on top of this stable baseline.
-- The current bundle installer is local-only and does not produce a notarized release artifact.
+- The LP still uses placeholder Stripe and download URLs until you wire production values.

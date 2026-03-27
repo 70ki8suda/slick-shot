@@ -142,13 +142,13 @@ private final class CaptureOverlaySessionGroup: CaptureOverlaySession {
 struct LiveCaptureOverlaySessionFactory: CaptureOverlaySessionFactory {
     private let screenFramesProvider: ScreenFramesProviding
     private let feedbackPlayer: CaptureFeedbackPlaying
-    private let sessionBuilder: (CGRect, @escaping (CGRect) -> Void, @escaping () -> Void) -> CaptureOverlaySession
+    private let sessionBuilder: (CGRect, CaptureFeedbackPlaying, @escaping (CGRect) -> Void, @escaping () -> Void) -> CaptureOverlaySession
 
     init(
         screenFramesProvider: ScreenFramesProviding = NSScreenFramesProvider(),
         feedbackPlayer: CaptureFeedbackPlaying = NullCaptureFeedbackPlayer(),
-        sessionBuilder: @escaping (CGRect, @escaping (CGRect) -> Void, @escaping () -> Void) -> CaptureOverlaySession = { frame, onSelection, onCancel in
-            CaptureOverlayWindow(frame: frame, onSelection: onSelection, onCancel: onCancel)
+        sessionBuilder: @escaping (CGRect, CaptureFeedbackPlaying, @escaping (CGRect) -> Void, @escaping () -> Void) -> CaptureOverlaySession = { frame, feedbackPlayer, onSelection, onCancel in
+            CaptureOverlayWindow(frame: frame, feedbackPlayer: feedbackPlayer, onSelection: onSelection, onCancel: onCancel)
         }
     ) {
         self.screenFramesProvider = screenFramesProvider
@@ -164,11 +164,11 @@ struct LiveCaptureOverlaySessionFactory: CaptureOverlaySessionFactory {
         let sessions = screenFramesProvider
             .screenFrames()
             .map { frame in
-                CaptureOverlayWindow(
-                    frame: frame,
-                    feedbackPlayer: oneShotFeedbackPlayer,
-                    onSelection: onSelection,
-                    onCancel: onCancel
+                sessionBuilder(
+                    frame,
+                    oneShotFeedbackPlayer,
+                    onSelection,
+                    onCancel
                 )
             }
         return CaptureOverlaySessionGroup(sessions: sessions)

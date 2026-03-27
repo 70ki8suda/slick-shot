@@ -8,4 +8,6 @@ enum AppBundleMetadata {
     static let shortVersionString = "0.1.0"
     static let bundlePackageType = "APPL"
     static let iconFileName = "AppIcon"
+    static let sparkleFeedURL = "https://downloads.slickshot.app/appcast.xml"
+    static let sparklePublicEDKey = "REPLACE_WITH_SPARKLE_PUBLIC_ED25519_KEY"
 }

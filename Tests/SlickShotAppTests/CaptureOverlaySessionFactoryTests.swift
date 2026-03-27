@@ -13,7 +13,7 @@ struct CaptureOverlaySessionFactoryTests {
                 CGRect(x: 1512, y: -98, width: 1920, height: 1080),
                 CGRect(x: 3432, y: -98, width: 1920, height: 1200)
             ]),
-            sessionBuilder: builder.makeSession(frame:onSelection:onCancel:)
+            sessionBuilder: builder.makeSession(frame:feedbackPlayer:onSelection:onCancel:)
         )
 
         let session = factory.makeSession(onSelection: { _ in }, onCancel: {})
@@ -46,11 +46,16 @@ private final class TestOverlaySessionBuilder {
 
     func makeSession(
         frame: CGRect,
+        feedbackPlayer: CaptureFeedbackPlaying,
         onSelection: @escaping (CGRect) -> Void,
         onCancel: @escaping () -> Void
     ) -> CaptureOverlaySession {
         frames.append(frame)
-        let session = TestOverlaySession(onSelection: onSelection, onCancel: onCancel)
+        let session = TestOverlaySession(
+            feedbackPlayer: feedbackPlayer,
+            onSelection: onSelection,
+            onCancel: onCancel
+        )
         sessions.append(session)
         return session
     }
@@ -58,15 +63,18 @@ private final class TestOverlaySessionBuilder {
 
 @MainActor
 private final class TestOverlaySession: CaptureOverlaySession {
+    let feedbackPlayer: CaptureFeedbackPlaying
     let onSelection: (CGRect) -> Void
     let onCancel: () -> Void
     private(set) var beginCallCount = 0
     private(set) var endCallCount = 0
 
     init(
+        feedbackPlayer: CaptureFeedbackPlaying,
         onSelection: @escaping (CGRect) -> Void,
         onCancel: @escaping () -> Void
     ) {
+        self.feedbackPlayer = feedbackPlayer
         self.onSelection = onSelection
         self.onCancel = onCancel
     }

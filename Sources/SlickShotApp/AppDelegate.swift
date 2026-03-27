@@ -12,6 +12,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var hotkeyMonitor: HotkeyMonitor?
     private var store: ScreenshotStore?
     private var feedbackPlayer: CaptureFeedbackPlaying?
+    private var updateController: UpdateController?
     private var hotkeyConfiguration = HotkeyConfiguration()
 
     func applicationDidFinishLaunching(_ notification: Notification) {
@@ -21,6 +22,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let captureService = ScreenCaptureService()
         let feedbackPlayer = CaptureFeedbackPlayer()
         self.feedbackPlayer = feedbackPlayer
+        let updateController = UpdateController()
+        self.updateController = updateController
         overlayController = ThumbnailOverlayController(store: store, feedbackPlayer: feedbackPlayer)
         let settingsWindowController = SettingsWindowController(
             shortcutDisplayProvider: { [weak self] in
@@ -47,6 +50,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             },
             onCaptureScreenshot: { [weak self] in
                 self?.startCapture()
+            },
+            onCheckForUpdates: { [weak self] in
+                self?.updateController?.checkForUpdates()
             },
             onOpenSettings: { [weak self] in
                 self?.settingsWindowController?.showSettingsWindow()

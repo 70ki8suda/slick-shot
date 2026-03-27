@@ -5,15 +5,18 @@ final class StatusItemController: NSObject {
     private let statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
     private let hotkeyDisplayStringProvider: () -> String
     private let onCaptureScreenshot: () -> Void
+    private let onCheckForUpdates: (() -> Void)?
     private let onOpenSettings: () -> Void
 
     init(
         hotkeyDisplayStringProvider: @escaping () -> String = { HotkeyConfiguration.default.displayString },
         onCaptureScreenshot: @escaping () -> Void = {},
+        onCheckForUpdates: (() -> Void)? = nil,
         onOpenSettings: @escaping () -> Void = {}
     ) {
         self.hotkeyDisplayStringProvider = hotkeyDisplayStringProvider
         self.onCaptureScreenshot = onCaptureScreenshot
+        self.onCheckForUpdates = onCheckForUpdates
         self.onOpenSettings = onOpenSettings
         super.init()
     }
@@ -33,6 +36,9 @@ final class StatusItemController: NSObject {
                 keyEquivalent: ""
             )
         )
+        if onCheckForUpdates != nil {
+            menu.addItem(NSMenuItem(title: "Check for Updates…", action: #selector(checkForUpdates), keyEquivalent: ""))
+        }
         menu.addItem(NSMenuItem(title: "Settings…", action: #selector(openSettings), keyEquivalent: ","))
         menu.addItem(.separator())
         menu.addItem(NSMenuItem(title: "Quit SlickShot", action: #selector(quitApp), keyEquivalent: "q"))
@@ -46,6 +52,10 @@ final class StatusItemController: NSObject {
 
     @objc private func openSettings() {
         onOpenSettings()
+    }
+
+    @objc private func checkForUpdates() {
+        onCheckForUpdates?()
     }
 
     @objc private func quitApp() {

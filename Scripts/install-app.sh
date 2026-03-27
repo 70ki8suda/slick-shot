@@ -12,10 +12,13 @@ RESOURCES_DIR="$CONTENTS_DIR/Resources"
 EXECUTABLE_PATH="$PRODUCT_DIR/SlickShotApp"
 ICONSET_DIR="$ROOT_DIR/Resources/AppIcon.iconset"
 ICON_FILE="$RESOURCES_DIR/AppIcon.icns"
+FRAMEWORKS_DIR="$CONTENTS_DIR/Frameworks"
 KEYCHAIN_PATH="$HOME/Library/Keychains/slickshot-signing.keychain-db"
 KEYCHAIN_PASSWORD="${SLICKSHOT_KEYCHAIN_PASSWORD:-slickshot-local-signing}"
 IDENTITY_NAME="${CODESIGN_IDENTITY:-SlickShot Local Signing}"
 P12_PASSWORD="slickshot-export"
+SPARKLE_FEED_URL="${SLICKSHOT_SU_FEED_URL:-https://downloads.slickshot.app/appcast.xml}"
+SPARKLE_PUBLIC_ED_KEY="${SLICKSHOT_SPARKLE_PUBLIC_ED_KEY:-REPLACE_WITH_SPARKLE_PUBLIC_ED25519_KEY}"
 
 mkdir -p "$HOME/Applications"
 
@@ -96,12 +99,18 @@ swift build \
   --scratch-path "$SCRATCH_PATH" \
   -c "$BUILD_CONFIG"
 
-mkdir -p "$MACOS_DIR" "$RESOURCES_DIR"
+mkdir -p "$MACOS_DIR" "$RESOURCES_DIR" "$FRAMEWORKS_DIR"
 
 cp "$EXECUTABLE_PATH" "$MACOS_DIR/SlickShot"
 /usr/bin/iconutil -c icns "$ICONSET_DIR" -o "$ICON_FILE"
 
-cat > "$CONTENTS_DIR/Info.plist" <<'PLIST'
+SPARKLE_FRAMEWORK_SOURCE="$(find "$SCRATCH_PATH" -path '*Sparkle.framework' -type d | head -n 1)"
+if [[ -n "$SPARKLE_FRAMEWORK_SOURCE" ]]; then
+  rm -rf "$FRAMEWORKS_DIR/Sparkle.framework"
+  cp -R "$SPARKLE_FRAMEWORK_SOURCE" "$FRAMEWORKS_DIR/Sparkle.framework"
+fi
+
+cat > "$CONTENTS_DIR/Info.plist" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
@@ -132,6 +141,12 @@ cat > "$CONTENTS_DIR/Info.plist" <<'PLIST'
   <true/>
   <key>NSPrincipalClass</key>
   <string>NSApplication</string>
+  <key>SUEnableAutomaticChecks</key>
+  <true/>
+  <key>SUFeedURL</key>
+  <string>$SPARKLE_FEED_URL</string>
+  <key>SUPublicEDKey</key>
+  <string>$SPARKLE_PUBLIC_ED_KEY</string>
 </dict>
 </plist>
 PLIST
