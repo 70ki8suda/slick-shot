@@ -15,7 +15,6 @@ final class CaptureOverlayView: NSView {
     private let bottomEdgeLayer = CAShapeLayer()
     private let leftEdgeLayer = CAShapeLayer()
     private let rightEdgeLayer = CAShapeLayer()
-    private let lagCornerLayer = CAShapeLayer()
     private let outerFrameLayer = CAShapeLayer()
     private let lagGlowLayer = CAShapeLayer()
     private let reticleTiming = CAMediaTimingFunction(controlPoints: 0.22, 1.14, 0.28, 1)
@@ -51,10 +50,6 @@ final class CaptureOverlayView: NSView {
         NSColor(calibratedRed: 0.48, green: 0.95, blue: 1, alpha: 0.92).setStroke()
         framePath.stroke()
 
-        let cornerPath = Self.crosshairAccentPath(in: selectionRect, length: 12, gap: 5)
-        cornerPath.lineWidth = 2.4
-        NSColor.white.withAlphaComponent(0.86).setStroke()
-        cornerPath.stroke()
     }
 
     override func mouseDown(with event: NSEvent) {
@@ -165,16 +160,9 @@ final class CaptureOverlayView: NSView {
         outerFrameLayer.lineJoin = .round
         outerFrameLayer.opacity = 0
 
-        lagCornerLayer.fillColor = NSColor.clear.cgColor
-        lagCornerLayer.strokeColor = NSColor.white.withAlphaComponent(0.94).cgColor
-        lagCornerLayer.lineWidth = 1.8
-        lagCornerLayer.lineCap = .round
-        lagCornerLayer.opacity = 0
-
         layer?.addSublayer(lagGlowLayer)
         layer?.addSublayer(outerFrameLayer)
         edgeLayers.forEach { layer?.addSublayer($0) }
-        layer?.addSublayer(lagCornerLayer)
     }
 
     private func updateReticleLayers(animated: Bool) {
@@ -188,7 +176,6 @@ final class CaptureOverlayView: NSView {
             bottomEdgeLayer.opacity = 0
             leftEdgeLayer.opacity = 0
             rightEdgeLayer.opacity = 0
-            lagCornerLayer.opacity = 0
             lagGlowLayer.path = nil
             outerFrameLayer.path = nil
             topEdgeLayer.path = nil
@@ -203,7 +190,6 @@ final class CaptureOverlayView: NSView {
             leftEdgeLayer.strokeEnd = 1
             rightEdgeLayer.strokeStart = 0
             rightEdgeLayer.strokeEnd = 1
-            lagCornerLayer.path = nil
             CATransaction.commit()
             return
         }
@@ -219,20 +205,17 @@ final class CaptureOverlayView: NSView {
             bottomEdgeLayer.opacity = 0
             leftEdgeLayer.opacity = 0
             rightEdgeLayer.opacity = 0
-            lagCornerLayer.opacity = 0
             lagGlowLayer.path = nil
             outerFrameLayer.path = nil
             topEdgeLayer.path = nil
             bottomEdgeLayer.path = nil
             leftEdgeLayer.path = nil
             rightEdgeLayer.path = nil
-            lagCornerLayer.path = nil
             CATransaction.commit()
             return
         }
         let outerFramePath = Self.outerReticlePath(in: outerRect).cgPath
         let edgePaths = Self.edgePaths(in: outerRect, inset: 24)
-        let cornerPath = Self.crosshairAccentPath(in: outerRect, length: 14, gap: 6).cgPath
 
         CATransaction.begin()
         CATransaction.setDisableActions(true)
@@ -242,14 +225,12 @@ final class CaptureOverlayView: NSView {
         bottomEdgeLayer.path = edgePaths.bottom
         leftEdgeLayer.path = edgePaths.left
         rightEdgeLayer.path = edgePaths.right
-        lagCornerLayer.path = cornerPath
         lagGlowLayer.opacity = 0
         outerFrameLayer.opacity = animated ? 0 : 1
         topEdgeLayer.opacity = 1
         bottomEdgeLayer.opacity = 1
         leftEdgeLayer.opacity = 1
         rightEdgeLayer.opacity = 1
-        lagCornerLayer.opacity = 1
         CATransaction.commit()
 
         if animated {
@@ -382,54 +363,24 @@ final class CaptureOverlayView: NSView {
         path.stroke()
     }
 
-    private static func crosshairAccentPath(in rect: CGRect, length: CGFloat, gap: CGFloat) -> NSBezierPath {
-        let path = NSBezierPath()
-        let halfGap = gap / 2
-
-        func drawCrosshair(center: CGPoint, horizontalDirection: CGFloat, verticalDirection: CGFloat) {
-            path.move(to: CGPoint(x: center.x - (horizontalDirection * halfGap), y: center.y))
-            path.line(to: CGPoint(x: center.x - (horizontalDirection * (halfGap + length)), y: center.y))
-            path.move(to: CGPoint(x: center.x, y: center.y - (verticalDirection * halfGap)))
-            path.line(to: CGPoint(x: center.x, y: center.y - (verticalDirection * (halfGap + length))))
-        }
-
-        drawCrosshair(
-            center: CGPoint(x: rect.minX, y: rect.maxY),
-            horizontalDirection: -1,
-            verticalDirection: 1
-        )
-        drawCrosshair(
-            center: CGPoint(x: rect.maxX, y: rect.maxY),
-            horizontalDirection: 1,
-            verticalDirection: 1
-        )
-        drawCrosshair(
-            center: CGPoint(x: rect.maxX, y: rect.minY),
-            horizontalDirection: 1,
-            verticalDirection: -1
-        )
-        drawCrosshair(
-            center: CGPoint(x: rect.minX, y: rect.minY),
-            horizontalDirection: -1,
-            verticalDirection: -1
-        )
-
-        return path
-    }
-
     private static func outerReticlePath(in rect: CGRect) -> NSBezierPath {
         let path = NSBezierPath()
         let cornerCut = min(max(min(rect.width, rect.height) * 0.065, 7), 14)
-        let lowerStepInset = min(max(rect.width * 0.1, 16), 30)
-        let lowerStepRise = min(max(rect.height * 0.1, 10), 22)
-        let stepWidth = min(max(rect.width * 0.16, 24), 46)
+        let lowerStepInset = min(max(rect.width * 0.09, 14), 24)
+        let lowerStepDrop = min(max(rect.height * 0.11, 12), 24)
+        let lowerStepWidth = min(max(rect.width * 0.13, 18), 34)
+        let bottomRightX = rect.maxX - cornerCut
+        let stepTopY = rect.minY + cornerCut + lowerStepDrop
+        let stepInnerX = bottomRightX - lowerStepInset
+        let stepBottomX = stepInnerX - lowerStepWidth
 
         path.move(to: CGPoint(x: rect.minX + cornerCut, y: rect.maxY))
         path.line(to: CGPoint(x: rect.maxX - cornerCut, y: rect.maxY))
         path.line(to: CGPoint(x: rect.maxX, y: rect.maxY - cornerCut))
-        path.line(to: CGPoint(x: rect.maxX, y: rect.minY + cornerCut + lowerStepRise))
-        path.line(to: CGPoint(x: rect.maxX - lowerStepInset, y: rect.minY + lowerStepRise))
-        path.line(to: CGPoint(x: rect.maxX - lowerStepInset - stepWidth, y: rect.minY))
+        path.line(to: CGPoint(x: rect.maxX, y: stepTopY))
+        path.line(to: CGPoint(x: stepInnerX, y: stepTopY))
+        path.line(to: CGPoint(x: stepInnerX, y: rect.minY + cornerCut))
+        path.line(to: CGPoint(x: stepBottomX, y: rect.minY))
         path.line(to: CGPoint(x: rect.minX + cornerCut, y: rect.minY))
         path.line(to: CGPoint(x: rect.minX, y: rect.minY + cornerCut))
         path.line(to: CGPoint(x: rect.minX, y: rect.maxY - cornerCut))
