@@ -221,10 +221,10 @@ final class CaptureOverlayView: NSView {
         CATransaction.commit()
 
         if animated {
-            animateLineExpansion(for: topEdgeLayer, duration: 0.26)
-            animateLineExpansion(for: bottomEdgeLayer, duration: 0.26)
-            animateLineExpansion(for: leftEdgeLayer, duration: 0.26)
-            animateLineExpansion(for: rightEdgeLayer, duration: 0.26)
+            animateLineExpansion(for: topEdgeLayer, duration: 0.41)
+            animateLineExpansion(for: bottomEdgeLayer, duration: 0.41)
+            animateLineExpansion(for: leftEdgeLayer, duration: 0.41)
+            animateLineExpansion(for: rightEdgeLayer, duration: 0.41)
         }
     }
 
@@ -247,17 +247,19 @@ final class CaptureOverlayView: NSView {
     }
 
     private func animateLineExpansion(for layer: CAShapeLayer, duration: CFTimeInterval) {
+        let currentStart = layer.presentation()?.strokeStart ?? layer.strokeStart
+        let currentEnd = layer.presentation()?.strokeEnd ?? layer.strokeEnd
         layer.removeAnimation(forKey: "reticleStrokeStart")
         layer.removeAnimation(forKey: "reticleStrokeEnd")
 
         let startAnimation = CABasicAnimation(keyPath: "strokeStart")
-        startAnimation.fromValue = 0.5
+        startAnimation.fromValue = currentStart
         startAnimation.toValue = 0
         startAnimation.duration = duration
         startAnimation.timingFunction = reticleTiming
 
         let endAnimation = CABasicAnimation(keyPath: "strokeEnd")
-        endAnimation.fromValue = 0.5
+        endAnimation.fromValue = currentEnd
         endAnimation.toValue = 1
         endAnimation.duration = duration
         endAnimation.timingFunction = reticleTiming
