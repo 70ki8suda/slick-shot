@@ -129,7 +129,7 @@ final class CaptureOverlayView: NSView {
         let edgeLayers = [topEdgeLayer, bottomEdgeLayer, leftEdgeLayer, rightEdgeLayer]
         for edgeLayer in edgeLayers {
             edgeLayer.fillColor = NSColor.clear.cgColor
-            edgeLayer.strokeColor = NSColor(calibratedWhite: 1, alpha: 0.78).cgColor
+            edgeLayer.strokeColor = NSColor(calibratedRed: 0.92, green: 0.98, blue: 1, alpha: 0.82).cgColor
             edgeLayer.lineWidth = 1.35
             edgeLayer.lineCap = .round
             edgeLayer.strokeStart = 0
@@ -138,16 +138,16 @@ final class CaptureOverlayView: NSView {
         }
 
         lagGlowLayer.fillColor = NSColor.clear.cgColor
-        lagGlowLayer.strokeColor = NSColor(calibratedWhite: 1, alpha: 0.18).cgColor
+        lagGlowLayer.strokeColor = NSColor(calibratedRed: 0.74, green: 0.95, blue: 1, alpha: 0.2).cgColor
         lagGlowLayer.lineWidth = 1.6
-        lagGlowLayer.shadowColor = NSColor(calibratedWhite: 1, alpha: 0.52).cgColor
-        lagGlowLayer.shadowOpacity = 0.28
-        lagGlowLayer.shadowRadius = 14
+        lagGlowLayer.shadowColor = NSColor(calibratedRed: 0.78, green: 0.96, blue: 1, alpha: 0.44).cgColor
+        lagGlowLayer.shadowOpacity = 0.34
+        lagGlowLayer.shadowRadius = 16
         lagGlowLayer.shadowOffset = .zero
         lagGlowLayer.opacity = 0
 
         outerFrameLayer.fillColor = NSColor.clear.cgColor
-        outerFrameLayer.strokeColor = NSColor(calibratedWhite: 1, alpha: 0.72).cgColor
+        outerFrameLayer.strokeColor = NSColor(calibratedRed: 0.9, green: 0.98, blue: 1, alpha: 0.74).cgColor
         outerFrameLayer.lineWidth = 1.2
         outerFrameLayer.lineCap = .round
         outerFrameLayer.lineJoin = .round
@@ -157,7 +157,7 @@ final class CaptureOverlayView: NSView {
 
         for segmentLayer in outerFrameSegmentLayers {
             segmentLayer.fillColor = NSColor.clear.cgColor
-            segmentLayer.strokeColor = NSColor(calibratedWhite: 1, alpha: 0.72).cgColor
+            segmentLayer.strokeColor = NSColor(calibratedRed: 0.9, green: 0.98, blue: 1, alpha: 0.74).cgColor
             segmentLayer.lineWidth = 1.2
             segmentLayer.lineCap = .round
             segmentLayer.lineJoin = .round
@@ -382,29 +382,39 @@ final class CaptureOverlayView: NSView {
 
     private func drawGlassSurface(in rect: CGRect) {
         let surfacePath = NSBezierPath(rect: rect)
-        NSColor.white.withAlphaComponent(0.06).setFill()
+        NSColor(calibratedRed: 0.86, green: 0.97, blue: 1, alpha: 0.08).setFill()
         surfacePath.fill()
 
         let gradient = NSGradient(colors: [
-            NSColor.white.withAlphaComponent(0.26),
-            NSColor.white.withAlphaComponent(0.1),
-            NSColor.white.withAlphaComponent(0.04),
-            NSColor.white.withAlphaComponent(0.12),
+            NSColor(calibratedRed: 0.97, green: 1, blue: 1, alpha: 0.3),
+            NSColor(calibratedRed: 0.88, green: 0.98, blue: 1, alpha: 0.14),
+            NSColor(calibratedRed: 0.82, green: 0.96, blue: 1, alpha: 0.06),
+            NSColor(calibratedRed: 0.95, green: 1, blue: 1, alpha: 0.16),
         ])
         gradient?.draw(in: surfacePath, angle: 90)
+
+        let cyanBloomRect = CGRect(
+            x: rect.minX + rect.width * 0.08,
+            y: rect.minY + rect.height * 0.44,
+            width: rect.width * 0.58,
+            height: rect.height * 0.32
+        )
+        let cyanBloomPath = NSBezierPath(roundedRect: cyanBloomRect, xRadius: cyanBloomRect.height / 2, yRadius: cyanBloomRect.height / 2)
+        NSColor(calibratedRed: 0.72, green: 0.94, blue: 1, alpha: 0.06).setFill()
+        cyanBloomPath.fill()
 
         let topHighlight = NSBezierPath()
         topHighlight.move(to: CGPoint(x: rect.minX + 1, y: rect.maxY - 1.5))
         topHighlight.line(to: CGPoint(x: rect.maxX - 1, y: rect.maxY - 1.5))
         topHighlight.lineWidth = 1
-        NSColor.white.withAlphaComponent(0.52).setStroke()
+        NSColor(calibratedRed: 0.98, green: 1, blue: 1, alpha: 0.58).setStroke()
         topHighlight.stroke()
 
         let sideHighlight = NSBezierPath()
         sideHighlight.move(to: CGPoint(x: rect.minX + 1.5, y: rect.minY + rect.height * 0.18))
         sideHighlight.line(to: CGPoint(x: rect.minX + 1.5, y: rect.maxY - rect.height * 0.12))
         sideHighlight.lineWidth = 0.8
-        NSColor.white.withAlphaComponent(0.18).setStroke()
+        NSColor(calibratedRed: 0.9, green: 0.98, blue: 1, alpha: 0.2).setStroke()
         sideHighlight.stroke()
     }
 
