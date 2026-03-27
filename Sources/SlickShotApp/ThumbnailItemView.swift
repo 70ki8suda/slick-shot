@@ -25,9 +25,9 @@ final class ThumbnailItemView: NSView {
         wantsLayer = true
         layer?.masksToBounds = false
         layer?.backgroundColor = NSColor.clear.cgColor
-        layer?.shadowColor = NSColor(calibratedRed: 0.27, green: 0.8, blue: 0.98, alpha: 0.64).cgColor
-        layer?.shadowOpacity = 0.28
-        layer?.shadowRadius = 24
+        layer?.shadowColor = NSColor(calibratedRed: 0.82, green: 0.94, blue: 1, alpha: 0.24).cgColor
+        layer?.shadowOpacity = 0.18
+        layer?.shadowRadius = 18
         layer?.shadowOffset = CGSize(width: 0, height: 14)
 
         imageView.imageScaling = .scaleAxesIndependently
@@ -188,8 +188,8 @@ final class ThumbnailItemView: NSView {
         glassSurfaceLayer.strokeColor = nil
 
         glowLayer.colors = [
-            NSColor(calibratedRed: 0.8, green: 0.99, blue: 1, alpha: 0.16).cgColor,
-            NSColor(calibratedRed: 0.42, green: 0.93, blue: 1, alpha: 0.12).cgColor,
+            NSColor(calibratedRed: 0.9, green: 0.98, blue: 1, alpha: 0.1).cgColor,
+            NSColor(calibratedRed: 0.78, green: 0.94, blue: 1, alpha: 0.07).cgColor,
             NSColor.clear.cgColor
         ]
         glowLayer.locations = [0, 0.42, 1]
@@ -249,8 +249,8 @@ final class ThumbnailItemView: NSView {
         CATransaction.begin()
         CATransaction.setAnimationDuration(0.18)
         CATransaction.setAnimationTimingFunction(CAMediaTimingFunction(name: .easeOut))
-        layer?.shadowOpacity = isHovering ? 0.38 : 0.28
-        layer?.shadowRadius = isHovering ? 28 : 24
+        layer?.shadowOpacity = isHovering ? 0.24 : 0.18
+        layer?.shadowRadius = isHovering ? 22 : 18
         accentLayer.strokeColor = NSColor(
             calibratedRed: 0.68,
             green: 0.98,
