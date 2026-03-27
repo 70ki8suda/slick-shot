@@ -17,6 +17,7 @@ final class CaptureOverlayView: NSView {
     private let lagCornerLayer = CAShapeLayer()
     private let lagGlowLayer = CAShapeLayer()
     private let reticleTiming = CAMediaTimingFunction(controlPoints: 0.22, 1.14, 0.28, 1)
+    private let minimumDecoratedExtent: CGFloat = 72
 
     override init(frame frameRect: NSRect) {
         super.init(frame: frameRect)
@@ -136,6 +137,8 @@ final class CaptureOverlayView: NSView {
             edgeLayer.strokeColor = NSColor(calibratedRed: 0.44, green: 0.92, blue: 1, alpha: 0.92).cgColor
             edgeLayer.lineWidth = 1.35
             edgeLayer.lineCap = .round
+            edgeLayer.strokeStart = 0
+            edgeLayer.strokeEnd = 1
             edgeLayer.opacity = 0
         }
 
@@ -180,42 +183,49 @@ final class CaptureOverlayView: NSView {
         }
 
         let outerRect = displayedReticleRect.insetBy(dx: -10, dy: -10)
+        guard shouldShowDecoratedReticle(for: outerRect) else {
+            CATransaction.begin()
+            CATransaction.setDisableActions(true)
+            lagGlowLayer.opacity = 0
+            topEdgeLayer.opacity = 0
+            bottomEdgeLayer.opacity = 0
+            leftEdgeLayer.opacity = 0
+            rightEdgeLayer.opacity = 0
+            lagCornerLayer.opacity = 0
+            lagGlowLayer.path = nil
+            topEdgeLayer.path = nil
+            bottomEdgeLayer.path = nil
+            leftEdgeLayer.path = nil
+            rightEdgeLayer.path = nil
+            lagCornerLayer.path = nil
+            CATransaction.commit()
+            return
+        }
         let edgePaths = Self.edgePaths(in: outerRect, inset: 24)
         let cornerPath = Self.crosshairAccentPath(in: outerRect, length: 14, gap: 6).cgPath
 
-        if animated {
-            lagGlowLayer.opacity = 1
-            topEdgeLayer.opacity = 1
-            bottomEdgeLayer.opacity = 1
-            leftEdgeLayer.opacity = 1
-            rightEdgeLayer.opacity = 1
-            lagCornerLayer.opacity = 1
-            lagGlowLayer.path = NSBezierPath(rect: outerRect).cgPath
-            animatePath(for: topEdgeLayer, from: Self.collapsedHorizontalEdgePath(in: outerRect, inset: 24, at: .top), to: edgePaths.top, duration: 0.24)
-            animatePath(for: bottomEdgeLayer, from: Self.collapsedHorizontalEdgePath(in: outerRect, inset: 24, at: .bottom), to: edgePaths.bottom, duration: 0.24)
-            animatePath(for: leftEdgeLayer, from: Self.collapsedVerticalEdgePath(in: outerRect, inset: 24, at: .left), to: edgePaths.left, duration: 0.24)
-            animatePath(for: rightEdgeLayer, from: Self.collapsedVerticalEdgePath(in: outerRect, inset: 24, at: .right), to: edgePaths.right, duration: 0.24)
-            CATransaction.begin()
-            CATransaction.setDisableActions(true)
-            lagCornerLayer.path = cornerPath
-            CATransaction.commit()
-        } else {
-            CATransaction.begin()
-            CATransaction.setDisableActions(true)
-            lagGlowLayer.path = NSBezierPath(rect: outerRect).cgPath
-            topEdgeLayer.path = edgePaths.top
-            bottomEdgeLayer.path = edgePaths.bottom
-            leftEdgeLayer.path = edgePaths.left
-            rightEdgeLayer.path = edgePaths.right
-            lagCornerLayer.path = cornerPath
-            CATransaction.commit()
-        }
+        CATransaction.begin()
+        CATransaction.setDisableActions(true)
+        lagGlowLayer.path = NSBezierPath(rect: outerRect).cgPath
+        topEdgeLayer.path = edgePaths.top
+        bottomEdgeLayer.path = edgePaths.bottom
+        leftEdgeLayer.path = edgePaths.left
+        rightEdgeLayer.path = edgePaths.right
+        lagCornerLayer.path = cornerPath
         lagGlowLayer.opacity = 1
         topEdgeLayer.opacity = 1
         bottomEdgeLayer.opacity = 1
         leftEdgeLayer.opacity = 1
         rightEdgeLayer.opacity = 1
         lagCornerLayer.opacity = 1
+        CATransaction.commit()
+
+        if animated {
+            animateLineExpansion(for: topEdgeLayer, duration: 0.26)
+            animateLineExpansion(for: bottomEdgeLayer, duration: 0.26)
+            animateLineExpansion(for: leftEdgeLayer, duration: 0.26)
+            animateLineExpansion(for: rightEdgeLayer, duration: 0.26)
+        }
     }
 
     private func scheduleReticleUpdate() {
@@ -236,14 +246,34 @@ final class CaptureOverlayView: NSView {
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.1, execute: workItem)
     }
 
-    private func animatePath(for layer: CAShapeLayer, from startPath: CGPath? = nil, to path: CGPath, duration: CFTimeInterval) {
-        let animation = CABasicAnimation(keyPath: "path")
-        animation.fromValue = startPath ?? layer.presentation()?.path ?? layer.path
-        animation.toValue = path
-        animation.duration = duration
-        animation.timingFunction = reticleTiming
-        layer.path = path
-        layer.add(animation, forKey: "reticlePath")
+    private func animateLineExpansion(for layer: CAShapeLayer, duration: CFTimeInterval) {
+        layer.removeAnimation(forKey: "reticleStrokeStart")
+        layer.removeAnimation(forKey: "reticleStrokeEnd")
+
+        let startAnimation = CABasicAnimation(keyPath: "strokeStart")
+        startAnimation.fromValue = 0.5
+        startAnimation.toValue = 0
+        startAnimation.duration = duration
+        startAnimation.timingFunction = reticleTiming
+
+        let endAnimation = CABasicAnimation(keyPath: "strokeEnd")
+        endAnimation.fromValue = 0.5
+        endAnimation.toValue = 1
+        endAnimation.duration = duration
+        endAnimation.timingFunction = reticleTiming
+
+        CATransaction.begin()
+        CATransaction.setDisableActions(true)
+        layer.strokeStart = 0
+        layer.strokeEnd = 1
+        CATransaction.commit()
+
+        layer.add(startAnimation, forKey: "reticleStrokeStart")
+        layer.add(endAnimation, forKey: "reticleStrokeEnd")
+    }
+
+    private func shouldShowDecoratedReticle(for rect: CGRect) -> Bool {
+        rect.width >= minimumDecoratedExtent && rect.height >= minimumDecoratedExtent
     }
 
     nonisolated static func dimmingRects(in bounds: CGRect, excluding selectionRect: CGRect?) -> [CGRect] {
@@ -354,37 +384,4 @@ final class CaptureOverlayView: NSView {
         )
     }
 
-    private enum VerticalEdge {
-        case left
-        case right
-    }
-
-    private enum HorizontalEdge {
-        case top
-        case bottom
-    }
-
-    private static func collapsedHorizontalEdgePath(in rect: CGRect, inset: CGFloat, at edge: HorizontalEdge) -> CGPath {
-        let horizontalInset = min(inset, rect.width * 0.3)
-        let availableWidth = max(rect.width - (horizontalInset * 2), 0)
-        let seedLength = min(max(availableWidth * 0.12, 10), 22)
-        let y = edge == .top ? rect.maxY : rect.minY
-        let midX = rect.midX
-        let path = NSBezierPath()
-        path.move(to: CGPoint(x: midX - (seedLength / 2), y: y))
-        path.line(to: CGPoint(x: midX + (seedLength / 2), y: y))
-        return path.cgPath
-    }
-
-    private static func collapsedVerticalEdgePath(in rect: CGRect, inset: CGFloat, at edge: VerticalEdge) -> CGPath {
-        let verticalInset = min(inset, rect.height * 0.3)
-        let availableHeight = max(rect.height - (verticalInset * 2), 0)
-        let seedLength = min(max(availableHeight * 0.12, 10), 22)
-        let x = edge == .left ? rect.minX : rect.maxX
-        let midY = rect.midY
-        let path = NSBezierPath()
-        path.move(to: CGPoint(x: x, y: midY - (seedLength / 2)))
-        path.line(to: CGPoint(x: x, y: midY + (seedLength / 2)))
-        return path.cgPath
-    }
 }
