@@ -16,7 +16,7 @@ final class CaptureOverlayView: NSView {
     private let rightEdgeLayer = CAShapeLayer()
     private let lagCornerLayer = CAShapeLayer()
     private let lagGlowLayer = CAShapeLayer()
-    private let reticleTiming = CAMediaTimingFunction(controlPoints: 0.16, 0.88, 0.24, 1)
+    private let reticleTiming = CAMediaTimingFunction(controlPoints: 0.22, 1.14, 0.28, 1)
 
     override init(frame frameRect: NSRect) {
         super.init(frame: frameRect)
@@ -184,16 +184,17 @@ final class CaptureOverlayView: NSView {
         let cornerPath = Self.crosshairAccentPath(in: outerRect, length: 14, gap: 6).cgPath
 
         if animated {
-            animateOpacityIfNeeded(for: lagGlowLayer, duration: 0.18)
-            animateOpacityIfNeeded(for: topEdgeLayer, duration: 0.18)
-            animateOpacityIfNeeded(for: bottomEdgeLayer, duration: 0.18)
-            animateOpacityIfNeeded(for: leftEdgeLayer, duration: 0.18)
-            animateOpacityIfNeeded(for: rightEdgeLayer, duration: 0.18)
+            lagGlowLayer.opacity = 1
+            topEdgeLayer.opacity = 1
+            bottomEdgeLayer.opacity = 1
+            leftEdgeLayer.opacity = 1
+            rightEdgeLayer.opacity = 1
+            lagCornerLayer.opacity = 1
             lagGlowLayer.path = NSBezierPath(rect: outerRect).cgPath
-            animatePath(for: topEdgeLayer, from: Self.collapsedHorizontalEdgePath(in: outerRect, inset: 24, at: .top), to: edgePaths.top, duration: 0.28)
-            animatePath(for: bottomEdgeLayer, from: Self.collapsedHorizontalEdgePath(in: outerRect, inset: 24, at: .bottom), to: edgePaths.bottom, duration: 0.28)
-            animatePath(for: leftEdgeLayer, from: Self.collapsedVerticalEdgePath(in: outerRect, inset: 24, at: .left), to: edgePaths.left, duration: 0.28)
-            animatePath(for: rightEdgeLayer, from: Self.collapsedVerticalEdgePath(in: outerRect, inset: 24, at: .right), to: edgePaths.right, duration: 0.28)
+            animatePath(for: topEdgeLayer, from: Self.collapsedHorizontalEdgePath(in: outerRect, inset: 24, at: .top), to: edgePaths.top, duration: 0.24)
+            animatePath(for: bottomEdgeLayer, from: Self.collapsedHorizontalEdgePath(in: outerRect, inset: 24, at: .bottom), to: edgePaths.bottom, duration: 0.24)
+            animatePath(for: leftEdgeLayer, from: Self.collapsedVerticalEdgePath(in: outerRect, inset: 24, at: .left), to: edgePaths.left, duration: 0.24)
+            animatePath(for: rightEdgeLayer, from: Self.collapsedVerticalEdgePath(in: outerRect, inset: 24, at: .right), to: edgePaths.right, duration: 0.24)
             CATransaction.begin()
             CATransaction.setDisableActions(true)
             lagCornerLayer.path = cornerPath
@@ -243,16 +244,6 @@ final class CaptureOverlayView: NSView {
         animation.timingFunction = reticleTiming
         layer.path = path
         layer.add(animation, forKey: "reticlePath")
-    }
-
-    private func animateOpacityIfNeeded(for layer: CAShapeLayer, duration: CFTimeInterval) {
-        guard layer.opacity < 0.99 else { return }
-        let animation = CABasicAnimation(keyPath: "opacity")
-        animation.fromValue = layer.presentation()?.opacity ?? layer.opacity
-        animation.toValue = 1
-        animation.duration = duration
-        animation.timingFunction = reticleTiming
-        layer.add(animation, forKey: "reticleOpacity")
     }
 
     nonisolated static func dimmingRects(in bounds: CGRect, excluding selectionRect: CGRect?) -> [CGRect] {
