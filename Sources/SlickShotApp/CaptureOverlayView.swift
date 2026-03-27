@@ -11,8 +11,6 @@ final class CaptureOverlayView: NSView {
     private var displayedReticleRect: CGRect?
     private var pendingReticleUpdate: DispatchWorkItem?
     private var pendingOuterFrameReveal: DispatchWorkItem?
-    private let glassRingView = NSVisualEffectView()
-    private let glassRingTintView = NSView()
     private let topEdgeLayer = CAShapeLayer()
     private let bottomEdgeLayer = CAShapeLayer()
     private let leftEdgeLayer = CAShapeLayer()
@@ -26,7 +24,6 @@ final class CaptureOverlayView: NSView {
     override init(frame frameRect: NSRect) {
         super.init(frame: frameRect)
         wantsLayer = true
-        configureGlassRingView()
         configureReticleLayers()
     }
 
@@ -36,11 +33,6 @@ final class CaptureOverlayView: NSView {
 
     override var acceptsFirstResponder: Bool {
         true
-    }
-
-    override func layout() {
-        super.layout()
-        glassRingView.frame = bounds
     }
 
     override func draw(_ dirtyRect: NSRect) {
@@ -178,27 +170,6 @@ final class CaptureOverlayView: NSView {
         outerFrameSegmentLayers.forEach { layer?.addSublayer($0) }
     }
 
-    private func configureGlassRingView() {
-        glassRingView.frame = bounds
-        glassRingView.autoresizingMask = [.width, .height]
-        glassRingView.blendingMode = .behindWindow
-        glassRingView.material = .hudWindow
-        glassRingView.state = .active
-        glassRingView.isEmphasized = false
-        glassRingView.wantsLayer = true
-        glassRingView.layer?.cornerCurve = .continuous
-        glassRingView.isHidden = true
-
-        glassRingTintView.frame = glassRingView.bounds
-        glassRingTintView.autoresizingMask = [.width, .height]
-        glassRingTintView.wantsLayer = true
-        glassRingTintView.layer?.backgroundColor = NSColor(calibratedRed: 0.78, green: 0.95, blue: 1, alpha: 0.08).cgColor
-        glassRingTintView.layer?.cornerCurve = .continuous
-
-        glassRingView.addSubview(glassRingTintView)
-        addSubview(glassRingView)
-    }
-
     private func updateReticleLayers(animated: Bool) {
         guard let displayedReticleRect else {
             cancelReticleAnimations()
@@ -217,8 +188,6 @@ final class CaptureOverlayView: NSView {
                 $0.strokeEnd = 1
             }
             CATransaction.commit()
-            glassRingView.isHidden = true
-            glassRingView.layer?.mask = nil
             return
         }
 
@@ -240,8 +209,6 @@ final class CaptureOverlayView: NSView {
                 $0.strokeEnd = 1
             }
             CATransaction.commit()
-            glassRingView.isHidden = true
-            glassRingView.layer?.mask = nil
             return
         }
         let outerFramePoints = Self.outerReticlePoints(in: outerRect)
@@ -266,25 +233,10 @@ final class CaptureOverlayView: NSView {
             }
         }
         CATransaction.commit()
-        updateGlassRingMask(outerRect: outerRect, innerRect: displayedReticleRect)
 
         if animated {
             scheduleOuterFrameReveal()
         }
-    }
-
-    private func updateGlassRingMask(outerRect: CGRect, innerRect: CGRect) {
-        let outerPath = Self.outerReticlePath(in: outerRect)
-        outerPath.appendRect(innerRect)
-        outerPath.windingRule = .evenOdd
-
-        let maskLayer = CAShapeLayer()
-        maskLayer.frame = bounds
-        maskLayer.path = outerPath.cgPath
-        maskLayer.fillRule = .evenOdd
-
-        glassRingView.layer?.mask = maskLayer
-        glassRingView.isHidden = false
     }
 
     private func scheduleReticleUpdate() {
