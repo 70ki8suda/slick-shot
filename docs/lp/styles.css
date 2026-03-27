@@ -491,7 +491,6 @@ h3 {
 }
 
 .story-strip,
-.experience-grid,
 .use-case-grid,
 .feature-grid,
 .faq-list {
@@ -509,7 +508,6 @@ h3 {
 .pricing-card,
 .final-cta,
 .faq-list details,
-.experience-grid article,
 .use-case-grid article {
   padding: 28px;
 }
@@ -551,15 +549,16 @@ h3 {
 }
 
 .feature-grid strong,
-.use-case-grid strong,
-.experience-grid strong {
+.use-case-grid strong {
   display: block;
   margin-bottom: 12px;
   font-size: 20px;
 }
 
-.experience-grid {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+.experience-showcase {
+  min-height: 620px;
+  border-radius: 34px;
+  padding: 18px;
 }
 
 .section-heading {

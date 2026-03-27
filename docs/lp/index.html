@@ -165,25 +165,67 @@
         <section class="experience-section">
           <div class="section-heading">
             <p class="section-kicker">Experience</p>
-            <h2>ネイティブっぽく、でも少し気持ちいい</h2>
+            <h2>SFアニメみたいなUIでちょっとミライ感</h2>
             <p>
-              白ベースの静かな未来感。liquid glass、硬質な shape、短いサウンドで、毎日の
-              QA やレビューの流れを少しだけ上質にします。
+              ただ便利なだけではなく、毎日触るときに少しだけ気分が上がるように。SlickShot
+              は、静かなHUDと硬質なshapeで、スクショの受け渡しを少しだけ未来っぽく整えています。
             </p>
           </div>
-          <div class="experience-grid">
-            <article class="glass-card">
-              <strong>静かなHUD</strong>
-              <p>作業を邪魔しないまま、少しだけ SF 的なキャプチャ体験。</p>
-            </article>
-            <article class="glass-card">
-              <strong>機械的な短い音</strong>
-              <p>派手な通知音ではなく、硬質で無駄のないフィードバック。</p>
-            </article>
-            <article class="glass-card">
-              <strong>shape の一貫性</strong>
-              <p>撮影時の外周フレームとサムネイル表示が同じ言語でつながる。</p>
-            </article>
+          <div class="experience-showcase glass-card">
+            <div class="mock-toolbar">
+              <span></span>
+              <span></span>
+              <span></span>
+            </div>
+
+            <div class="mock-canvas">
+              <div class="mock-editor">
+                <div class="mock-sidebar"></div>
+                <div class="mock-panel">
+                  <div class="mock-lines">
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                  </div>
+                </div>
+              </div>
+
+              <div class="capture-hud" aria-hidden="true">
+                <svg viewBox="0 0 420 300" class="hud-svg">
+                  <defs>
+                    <linearGradient id="hudGlassExperience" x1="0" x2="0" y1="0" y2="1">
+                      <stop offset="0%" stop-color="rgba(255,255,255,0.34)" />
+                      <stop offset="38%" stop-color="rgba(222,247,255,0.12)" />
+                      <stop offset="100%" stop-color="rgba(255,255,255,0.08)" />
+                    </linearGradient>
+                  </defs>
+                  <path
+                    class="hud-fill"
+                    d="M74 56 L321 56 L336 71 L336 188 L349 201 L349 250 L336 263 L76 263 L61 248 L61 70 Z"
+                  />
+                  <path
+                    class="hud-frame"
+                    pathLength="1"
+                    d="M74 56 L321 56 L336 71 L336 188 L349 201 L349 250 L336 263 L76 263 L61 248 L61 70 Z"
+                  />
+                  <path
+                    class="hud-inner"
+                    d="M93 75 L306 75 L318 87 L318 186 L329 197 L329 231 L318 243 L95 243 L83 231 L83 88 Z"
+                  />
+                </svg>
+                <div class="hud-thumbnail-stack">
+                  <div class="stack-card back"></div>
+                  <div class="stack-card mid"></div>
+                  <div class="stack-card front"></div>
+                </div>
+              </div>
+            </div>
+
+            <div class="mock-footer">
+              <div class="mock-chip">HUD preview</div>
+              <div class="mock-chip">Hero の右は動画に差し替え予定</div>
+            </div>
           </div>
         </section>
 
