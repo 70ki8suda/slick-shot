@@ -1,7 +1,7 @@
 const config = {
   stripeLink: "https://buy.stripe.com/test_5kQ28r6Ed3Rd1rk1ZY5sA00",
   downloadLink: "https://downloads.slick-shot.com/SlickShot.zip",
-  refundEmail: "refund@slick-shot.com",
+  refundEmail: "telekinesick@gmail.com",
 };
 
 document.querySelectorAll("[data-stripe-link]").forEach((link) => {
