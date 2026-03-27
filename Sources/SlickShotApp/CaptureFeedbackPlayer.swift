@@ -47,12 +47,14 @@ final class CaptureFeedbackPlayer: CaptureFeedbackPlaying {
         switch event {
         case .captureCompleted:
             return makeWAV(
-                startFrequency: 810,
-                endFrequency: 1_420,
-                duration: 0.16,
-                overtoneGain: 0.22,
-                transientMix: 0.12,
-                shimmerMix: 0.14
+                startFrequency: 720,
+                endFrequency: 1_080,
+                duration: 0.145,
+                overtoneGain: 0.3,
+                transientMix: 0.22,
+                shimmerMix: 0.05,
+                mechanicalPulseMix: 0.18,
+                pitchSnapMix: 0.12
             )
         case .dropCompleted:
             return makeWAV(
@@ -61,7 +63,9 @@ final class CaptureFeedbackPlayer: CaptureFeedbackPlaying {
                 duration: 0.11,
                 overtoneGain: 0.16,
                 transientMix: 0.06,
-                shimmerMix: 0.08
+                shimmerMix: 0.08,
+                mechanicalPulseMix: 0.04,
+                pitchSnapMix: 0.05
             )
         }
     }
@@ -73,6 +77,8 @@ final class CaptureFeedbackPlayer: CaptureFeedbackPlaying {
         overtoneGain: Double,
         transientMix: Double,
         shimmerMix: Double,
+        mechanicalPulseMix: Double,
+        pitchSnapMix: Double,
         sampleRate: Double = 44_100
     ) -> Data {
         let frameCount = max(1, Int(sampleRate * duration))
@@ -112,10 +118,16 @@ final class CaptureFeedbackPlayer: CaptureFeedbackPlaying {
             let shimmerTheta = theta * 2.76
             let transientEnvelope = exp(-14 * progress)
             let transientTheta = 2 * Double.pi * 2_800 * (Double(sampleIndex) / sampleRate)
+            let pulseTheta = theta * 0.5
+            let pulseWave = sin(pulseTheta) >= 0 ? 1.0 : -1.0
+            let pitchSnapEnvelope = exp(-11 * progress)
+            let pitchSnapTheta = 2 * Double.pi * (frequency * 1.48) * (Double(sampleIndex) / sampleRate)
             let signal = (sin(theta) * 0.82)
                 + (sin(overtoneTheta) * overtoneGain)
                 + (sin(shimmerTheta) * shimmerMix)
                 + (sin(transientTheta) * transientMix * transientEnvelope)
+                + (pulseWave * mechanicalPulseMix * 0.32)
+                + (sin(pitchSnapTheta) * pitchSnapMix * pitchSnapEnvelope)
             let sample = Int16(max(-1, min(1, signal * envelope * 0.92)) * Double(Int16.max))
             append(sample)
         }
