@@ -16,6 +16,7 @@ final class CaptureOverlayView: NSView {
     private let leftEdgeLayer = CAShapeLayer()
     private let rightEdgeLayer = CAShapeLayer()
     private let outerFrameLayer = CAShapeLayer()
+    private let outerFrameSegmentLayers: [CAShapeLayer] = (0..<12).map { _ in CAShapeLayer() }
     private let lagGlowLayer = CAShapeLayer()
     private let reticleTiming = CAMediaTimingFunction(controlPoints: 0.22, 1.14, 0.28, 1)
     private let minimumDecoratedExtent: CGFloat = 72
@@ -156,8 +157,19 @@ final class CaptureOverlayView: NSView {
         outerFrameLayer.strokeEnd = 1
         outerFrameLayer.opacity = 0
 
+        for segmentLayer in outerFrameSegmentLayers {
+            segmentLayer.fillColor = NSColor.clear.cgColor
+            segmentLayer.strokeColor = NSColor(calibratedRed: 0.62, green: 0.97, blue: 1, alpha: 0.68).cgColor
+            segmentLayer.lineWidth = 1.2
+            segmentLayer.lineCap = .round
+            segmentLayer.lineJoin = .round
+            segmentLayer.strokeStart = 0
+            segmentLayer.strokeEnd = 1
+            segmentLayer.opacity = 0
+        }
+
         layer?.addSublayer(lagGlowLayer)
-        layer?.addSublayer(outerFrameLayer)
+        outerFrameSegmentLayers.forEach { layer?.addSublayer($0) }
     }
 
     private func updateReticleLayers(animated: Bool) {
@@ -171,6 +183,12 @@ final class CaptureOverlayView: NSView {
             outerFrameLayer.path = nil
             outerFrameLayer.strokeStart = 0
             outerFrameLayer.strokeEnd = 1
+            outerFrameSegmentLayers.forEach {
+                $0.opacity = 0
+                $0.path = nil
+                $0.strokeStart = 0
+                $0.strokeEnd = 1
+            }
             CATransaction.commit()
             return
         }
@@ -186,17 +204,32 @@ final class CaptureOverlayView: NSView {
             outerFrameLayer.path = nil
             outerFrameLayer.strokeStart = 0
             outerFrameLayer.strokeEnd = 1
+            outerFrameSegmentLayers.forEach {
+                $0.opacity = 0
+                $0.path = nil
+                $0.strokeStart = 0
+                $0.strokeEnd = 1
+            }
             CATransaction.commit()
             return
         }
-        let outerFramePath = Self.outerReticlePath(in: outerRect).cgPath
+        let outerFramePoints = Self.outerReticlePoints(in: outerRect)
+        let outerFrameSegmentPaths = Self.outerReticleSegmentPaths(points: outerFramePoints)
 
         CATransaction.begin()
         CATransaction.setDisableActions(true)
-        lagGlowLayer.path = outerFramePath
-        outerFrameLayer.path = outerFramePath
+        lagGlowLayer.path = nil
+        outerFrameLayer.path = nil
         lagGlowLayer.opacity = 0
         outerFrameLayer.opacity = animated ? 0 : 1
+        for (index, segmentLayer) in outerFrameSegmentLayers.enumerated() {
+            segmentLayer.path = index < outerFrameSegmentPaths.count ? outerFrameSegmentPaths[index] : nil
+            segmentLayer.opacity = index < outerFrameSegmentPaths.count ? 1 : 0
+            if !animated {
+                segmentLayer.strokeStart = 0
+                segmentLayer.strokeEnd = 1
+            }
+        }
         CATransaction.commit()
 
         if animated {
@@ -226,10 +259,6 @@ final class CaptureOverlayView: NSView {
         pendingOuterFrameReveal?.cancel()
         let workItem = DispatchWorkItem { [weak self] in
             guard let self, self.selectionRect != nil, self.displayedReticleRect != nil else { return }
-            CATransaction.begin()
-            CATransaction.setDisableActions(true)
-            self.outerFrameLayer.opacity = 1
-            CATransaction.commit()
             self.animateOuterFrameReveal(duration: 0.4)
         }
         pendingOuterFrameReveal = workItem
@@ -237,35 +266,38 @@ final class CaptureOverlayView: NSView {
     }
 
     private func animateOuterFrameReveal(duration: CFTimeInterval) {
-        outerFrameLayer.removeAnimation(forKey: "outerFrameStrokeStart")
-        outerFrameLayer.removeAnimation(forKey: "outerFrameStrokeEnd")
+        for segmentLayer in outerFrameSegmentLayers where segmentLayer.path != nil {
+            segmentLayer.removeAnimation(forKey: "outerFrameStrokeStart")
+            segmentLayer.removeAnimation(forKey: "outerFrameStrokeEnd")
 
-        CATransaction.begin()
-        CATransaction.setDisableActions(true)
-        outerFrameLayer.strokeStart = 0.5
-        outerFrameLayer.strokeEnd = 0.5
-        CATransaction.commit()
+            CATransaction.begin()
+            CATransaction.setDisableActions(true)
+            segmentLayer.opacity = 1
+            segmentLayer.strokeStart = 0.5
+            segmentLayer.strokeEnd = 0.5
+            CATransaction.commit()
 
-        let startAnimation = CABasicAnimation(keyPath: "strokeStart")
-        startAnimation.fromValue = 0.5
-        startAnimation.toValue = 0
-        startAnimation.duration = duration
-        startAnimation.timingFunction = reticleTiming
+            let startAnimation = CABasicAnimation(keyPath: "strokeStart")
+            startAnimation.fromValue = 0.5
+            startAnimation.toValue = 0
+            startAnimation.duration = duration
+            startAnimation.timingFunction = reticleTiming
 
-        let endAnimation = CABasicAnimation(keyPath: "strokeEnd")
-        endAnimation.fromValue = 0.5
-        endAnimation.toValue = 1
-        endAnimation.duration = duration
-        endAnimation.timingFunction = reticleTiming
+            let endAnimation = CABasicAnimation(keyPath: "strokeEnd")
+            endAnimation.fromValue = 0.5
+            endAnimation.toValue = 1
+            endAnimation.duration = duration
+            endAnimation.timingFunction = reticleTiming
 
-        CATransaction.begin()
-        CATransaction.setDisableActions(true)
-        outerFrameLayer.strokeStart = 0
-        outerFrameLayer.strokeEnd = 1
-        CATransaction.commit()
+            CATransaction.begin()
+            CATransaction.setDisableActions(true)
+            segmentLayer.strokeStart = 0
+            segmentLayer.strokeEnd = 1
+            CATransaction.commit()
 
-        outerFrameLayer.add(startAnimation, forKey: "outerFrameStrokeStart")
-        outerFrameLayer.add(endAnimation, forKey: "outerFrameStrokeEnd")
+            segmentLayer.add(startAnimation, forKey: "outerFrameStrokeStart")
+            segmentLayer.add(endAnimation, forKey: "outerFrameStrokeEnd")
+        }
     }
 
     private func animateLineExpansion(for layer: CAShapeLayer, duration: CFTimeInterval) {
@@ -301,8 +333,10 @@ final class CaptureOverlayView: NSView {
     }
 
     private func cancelReticleAnimations() {
-        outerFrameLayer.removeAnimation(forKey: "outerFrameStrokeStart")
-        outerFrameLayer.removeAnimation(forKey: "outerFrameStrokeEnd")
+        outerFrameSegmentLayers.forEach {
+            $0.removeAnimation(forKey: "outerFrameStrokeStart")
+            $0.removeAnimation(forKey: "outerFrameStrokeEnd")
+        }
         [topEdgeLayer, bottomEdgeLayer, leftEdgeLayer, rightEdgeLayer].forEach {
             $0.removeAnimation(forKey: "reticleStrokeStart")
             $0.removeAnimation(forKey: "reticleStrokeEnd")
@@ -361,12 +395,23 @@ final class CaptureOverlayView: NSView {
     }
 
     private static func outerReticlePath(in rect: CGRect) -> NSBezierPath {
+        let points = outerReticlePoints(in: rect)
         let path = NSBezierPath()
-        let horizontalInset = min(max(rect.width * 0.09, 16), 26)
-        let verticalInset = min(max(rect.height * 0.09, 12), 22)
+        guard let first = points.first else { return path }
+        path.move(to: first)
+        for point in points.dropFirst() {
+            path.line(to: point)
+        }
+        path.close()
+        return path
+    }
+
+    private static func outerReticlePoints(in rect: CGRect) -> [CGPoint] {
+        let horizontalInset = min(max(rect.width * 0.07, 12), 20)
+        let verticalInset = min(max(rect.height * 0.07, 10), 18)
         let cornerCut = min(max(min(rect.width, rect.height) * 0.055, 8), 12)
-        let stepTopY = rect.minY + rect.height * 0.28
-        let stepBottomY = rect.minY + rect.height * 0.08
+        let stepTopY = rect.minY + rect.height * 0.21
+        let stepBottomY = rect.minY + rect.height * 0.035
 
         let leftX = rect.minX - horizontalInset
         let rightX = rect.maxX + horizontalInset
@@ -374,20 +419,32 @@ final class CaptureOverlayView: NSView {
         let topY = rect.maxY + verticalInset
         let bottomY = rect.minY - verticalInset
 
-        path.move(to: CGPoint(x: leftX + cornerCut, y: topY))
-        path.line(to: CGPoint(x: rightX - cornerCut, y: topY))
-        path.line(to: CGPoint(x: rightX, y: topY - cornerCut))
-        path.line(to: CGPoint(x: rightX, y: stepTopY))
-        path.line(to: CGPoint(x: outerStepX, y: stepTopY - cornerCut))
-        path.line(to: CGPoint(x: outerStepX, y: stepBottomY + cornerCut))
-        path.line(to: CGPoint(x: rightX, y: stepBottomY))
-        path.line(to: CGPoint(x: rightX, y: bottomY + cornerCut))
-        path.line(to: CGPoint(x: rightX - cornerCut, y: bottomY))
-        path.line(to: CGPoint(x: leftX + cornerCut, y: bottomY))
-        path.line(to: CGPoint(x: leftX, y: bottomY + cornerCut))
-        path.line(to: CGPoint(x: leftX, y: topY - cornerCut))
-        path.close()
-        return path
+        return [
+            CGPoint(x: leftX + cornerCut, y: topY),
+            CGPoint(x: rightX - cornerCut, y: topY),
+            CGPoint(x: rightX, y: topY - cornerCut),
+            CGPoint(x: rightX, y: stepTopY),
+            CGPoint(x: outerStepX, y: stepTopY - cornerCut),
+            CGPoint(x: outerStepX, y: stepBottomY + cornerCut),
+            CGPoint(x: rightX, y: stepBottomY),
+            CGPoint(x: rightX, y: bottomY + cornerCut),
+            CGPoint(x: rightX - cornerCut, y: bottomY),
+            CGPoint(x: leftX + cornerCut, y: bottomY),
+            CGPoint(x: leftX, y: bottomY + cornerCut),
+            CGPoint(x: leftX, y: topY - cornerCut),
+        ]
+    }
+
+    private static func outerReticleSegmentPaths(points: [CGPoint]) -> [CGPath] {
+        guard points.count > 1 else { return [] }
+        return (0..<points.count).map { index in
+            let start = points[index]
+            let end = points[(index + 1) % points.count]
+            let path = NSBezierPath()
+            path.move(to: start)
+            path.line(to: end)
+            return path.cgPath
+        }
     }
 
 }
