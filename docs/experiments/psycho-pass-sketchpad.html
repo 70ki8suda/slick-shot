@@ -1,0 +1,424 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Psycho-Pass HUD Sketchpad</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        --bg: #071015;
+        --panel: rgba(9, 17, 24, 0.88);
+        --line: #ff6b7d;
+        --line-alt: #43e4ff;
+        --text: #d9eef5;
+        --muted: #87a3ad;
+        --border: rgba(110, 212, 235, 0.22);
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        font-family: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        background:
+          radial-gradient(circle at top, rgba(66, 193, 232, 0.12), transparent 32%),
+          linear-gradient(180deg, #09141b 0%, #060c11 100%);
+        color: var(--text);
+      }
+
+      .shell {
+        display: grid;
+        grid-template-columns: 320px minmax(0, 1fr);
+        min-height: 100vh;
+      }
+
+      .panel {
+        padding: 24px 20px;
+        border-right: 1px solid var(--border);
+        background: var(--panel);
+        backdrop-filter: blur(14px);
+      }
+
+      h1 {
+        margin: 0 0 8px;
+        font-size: 22px;
+        letter-spacing: 0.02em;
+      }
+
+      p {
+        margin: 0 0 18px;
+        color: var(--muted);
+        line-height: 1.5;
+        font-size: 14px;
+      }
+
+      .group {
+        margin-bottom: 18px;
+        padding: 14px;
+        border: 1px solid var(--border);
+        border-radius: 14px;
+        background: rgba(11, 20, 26, 0.66);
+      }
+
+      .group h2 {
+        margin: 0 0 12px;
+        font-size: 13px;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: #95cbd8;
+      }
+
+      .row {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 10px;
+      }
+
+      .row:last-child {
+        margin-bottom: 0;
+      }
+
+      button,
+      input[type="range"],
+      select {
+        width: 100%;
+      }
+
+      button {
+        border: 1px solid var(--border);
+        background: rgba(12, 24, 31, 0.9);
+        color: var(--text);
+        border-radius: 10px;
+        padding: 10px 12px;
+        cursor: pointer;
+        transition: background 140ms ease, border-color 140ms ease;
+      }
+
+      button:hover {
+        background: rgba(19, 39, 50, 0.94);
+        border-color: rgba(115, 219, 243, 0.42);
+      }
+
+      .swatches {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 10px;
+      }
+
+      .swatch {
+        height: 36px;
+        border-radius: 10px;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        cursor: pointer;
+      }
+
+      .swatch.active {
+        outline: 2px solid #dff9ff;
+        outline-offset: 2px;
+      }
+
+      .value {
+        min-width: 44px;
+        text-align: right;
+        color: #b9e8f1;
+        font-size: 13px;
+      }
+
+      .stage {
+        display: grid;
+        place-items: center;
+        padding: 28px;
+      }
+
+      .canvas-shell {
+        position: relative;
+        width: min(100%, 1100px);
+        aspect-ratio: 4 / 3;
+        border-radius: 18px;
+        overflow: hidden;
+        border: 1px solid rgba(105, 214, 236, 0.24);
+        box-shadow: 0 22px 70px rgba(0, 0, 0, 0.45);
+        background: #000;
+      }
+
+      .canvas-shell img,
+      .canvas-shell canvas {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+      }
+
+      .canvas-shell img {
+        object-fit: contain;
+        user-select: none;
+        pointer-events: none;
+      }
+
+      .canvas-shell canvas {
+        touch-action: none;
+        cursor: crosshair;
+      }
+
+      .footer {
+        margin-top: 14px;
+        font-size: 12px;
+        color: var(--muted);
+      }
+    </style>
+  </head>
+  <body>
+    <div class="shell">
+      <aside class="panel">
+        <h1>Psycho-Pass Sketchpad</h1>
+        <p>背景画像の上にざっくり形を書けます。描いた線は PNG で保存できます。</p>
+
+        <div class="group">
+          <h2>Color</h2>
+          <div class="swatches" id="swatches"></div>
+        </div>
+
+        <div class="group">
+          <h2>Mode</h2>
+          <div class="row">
+            <select id="draw-mode">
+              <option value="freehand">Freehand</option>
+              <option value="line">Straight Line</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="group">
+          <h2>Brush</h2>
+          <div class="row">
+            <input id="brush-size" type="range" min="1" max="12" step="1" value="3" />
+            <div class="value" id="brush-size-value">3px</div>
+          </div>
+          <div class="row">
+            <input id="brush-opacity" type="range" min="0.1" max="1" step="0.05" value="0.95" />
+            <div class="value" id="brush-opacity-value">95%</div>
+          </div>
+        </div>
+
+        <div class="group">
+          <h2>Actions</h2>
+          <div class="row"><button id="undo">Undo</button></div>
+          <div class="row"><button id="clear">Clear</button></div>
+          <div class="row"><button id="download">Download PNG</button></div>
+        </div>
+
+        <div class="footer">
+          背景: <code>psycho-pass-former-source.jpg</code><br />
+          線だけでざっくり輪郭を引く用途を想定しています。
+        </div>
+      </aside>
+
+      <main class="stage">
+        <div class="canvas-shell">
+          <img id="reference" src="./psycho-pass-former-source.jpg" alt="Psycho-Pass reference" />
+          <canvas id="sketch"></canvas>
+        </div>
+      </main>
+    </div>
+
+    <script>
+      const canvas = document.getElementById("sketch");
+      const ctx = canvas.getContext("2d");
+      const reference = document.getElementById("reference");
+      const sizeInput = document.getElementById("brush-size");
+      const opacityInput = document.getElementById("brush-opacity");
+      const sizeValue = document.getElementById("brush-size-value");
+      const opacityValue = document.getElementById("brush-opacity-value");
+      const swatches = document.getElementById("swatches");
+      const drawModeSelect = document.getElementById("draw-mode");
+      const undoButton = document.getElementById("undo");
+      const clearButton = document.getElementById("clear");
+      const downloadButton = document.getElementById("download");
+
+      const palette = [
+        "#ff6b7d",
+        "#43e4ff",
+        "#fff38a",
+        "#ffffff",
+      ];
+
+      let brushColor = palette[0];
+      let strokes = [];
+      let currentStroke = null;
+      let drawing = false;
+
+      function resizeCanvas() {
+        const rect = canvas.getBoundingClientRect();
+        const ratio = window.devicePixelRatio || 1;
+        canvas.width = Math.round(rect.width * ratio);
+        canvas.height = Math.round(rect.height * ratio);
+        ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
+        redraw();
+      }
+
+      function currentBrush() {
+        return {
+          color: brushColor,
+          size: Number(sizeInput.value),
+          opacity: Number(opacityInput.value),
+        };
+      }
+
+      function updateLabels() {
+        sizeValue.textContent = `${sizeInput.value}px`;
+        opacityValue.textContent = `${Math.round(Number(opacityInput.value) * 100)}%`;
+      }
+
+      function pointFromEvent(event) {
+        const rect = canvas.getBoundingClientRect();
+        return {
+          x: event.clientX - rect.left,
+          y: event.clientY - rect.top,
+        };
+      }
+
+      function drawStroke(stroke) {
+        if (!stroke.points.length) return;
+        ctx.save();
+        ctx.lineCap = "round";
+        ctx.lineJoin = "round";
+        ctx.strokeStyle = stroke.color;
+        ctx.lineWidth = stroke.size;
+        ctx.globalAlpha = stroke.opacity;
+        ctx.beginPath();
+        ctx.moveTo(stroke.points[0].x, stroke.points[0].y);
+        for (let i = 1; i < stroke.points.length; i += 1) {
+          ctx.lineTo(stroke.points[i].x, stroke.points[i].y);
+        }
+        if (stroke.points.length === 1) {
+          ctx.lineTo(stroke.points[0].x + 0.001, stroke.points[0].y + 0.001);
+        }
+        ctx.stroke();
+        ctx.restore();
+      }
+
+      function redraw() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        strokes.forEach(drawStroke);
+        if (currentStroke) drawStroke(currentStroke);
+      }
+
+      function startDrawing(event) {
+        drawing = true;
+        const point = pointFromEvent(event);
+        currentStroke = {
+          ...currentBrush(),
+          mode: drawModeSelect.value,
+          points: [point],
+        };
+        redraw();
+      }
+
+      function continueDrawing(event) {
+        if (!drawing || !currentStroke) return;
+        const point = pointFromEvent(event);
+        if (currentStroke.mode === "line") {
+          currentStroke.points = [currentStroke.points[0], point];
+        } else {
+          currentStroke.points.push(point);
+        }
+        redraw();
+      }
+
+      function stopDrawing() {
+        if (!drawing || !currentStroke) return;
+        drawing = false;
+        strokes.push(currentStroke);
+        currentStroke = null;
+        redraw();
+      }
+
+      function buildSwatches() {
+        palette.forEach((color) => {
+          const button = document.createElement("button");
+          button.className = "swatch";
+          button.style.background = color;
+          if (color === brushColor) button.classList.add("active");
+          button.addEventListener("click", () => {
+            brushColor = color;
+            document.querySelectorAll(".swatch").forEach((node) => node.classList.remove("active"));
+            button.classList.add("active");
+          });
+          swatches.appendChild(button);
+        });
+      }
+
+      function downloadComposite() {
+        const exportCanvas = document.createElement("canvas");
+        exportCanvas.width = reference.naturalWidth;
+        exportCanvas.height = reference.naturalHeight;
+        const exportCtx = exportCanvas.getContext("2d");
+        exportCtx.drawImage(reference, 0, 0);
+
+        const scaleX = reference.naturalWidth / canvas.clientWidth;
+        const scaleY = reference.naturalHeight / canvas.clientHeight;
+
+        strokes.forEach((stroke) => {
+          exportCtx.save();
+          exportCtx.lineCap = "round";
+          exportCtx.lineJoin = "round";
+          exportCtx.strokeStyle = stroke.color;
+          exportCtx.lineWidth = stroke.size * scaleX;
+          exportCtx.globalAlpha = stroke.opacity;
+          exportCtx.beginPath();
+          exportCtx.moveTo(stroke.points[0].x * scaleX, stroke.points[0].y * scaleY);
+          for (let i = 1; i < stroke.points.length; i += 1) {
+            exportCtx.lineTo(stroke.points[i].x * scaleX, stroke.points[i].y * scaleY);
+          }
+          if (stroke.points.length === 1) {
+            exportCtx.lineTo((stroke.points[0].x + 0.001) * scaleX, (stroke.points[0].y + 0.001) * scaleY);
+          }
+          exportCtx.stroke();
+          exportCtx.restore();
+        });
+
+        const link = document.createElement("a");
+        link.href = exportCanvas.toDataURL("image/png");
+        link.download = "psycho-pass-sketch.png";
+        link.click();
+      }
+
+      sizeInput.addEventListener("input", updateLabels);
+      opacityInput.addEventListener("input", updateLabels);
+      undoButton.addEventListener("click", () => {
+        strokes.pop();
+        redraw();
+      });
+      clearButton.addEventListener("click", () => {
+        strokes = [];
+        currentStroke = null;
+        redraw();
+      });
+      downloadButton.addEventListener("click", downloadComposite);
+
+      canvas.addEventListener("pointerdown", (event) => {
+        canvas.setPointerCapture(event.pointerId);
+        startDrawing(event);
+      });
+      canvas.addEventListener("pointermove", continueDrawing);
+      canvas.addEventListener("pointerup", stopDrawing);
+      canvas.addEventListener("pointercancel", stopDrawing);
+      canvas.addEventListener("pointerleave", stopDrawing);
+
+      buildSwatches();
+      updateLabels();
+
+      if (reference.complete) {
+        resizeCanvas();
+      } else {
+        reference.addEventListener("load", resizeCanvas);
+      }
+      window.addEventListener("resize", resizeCanvas);
+    </script>
+  </body>
+</html>

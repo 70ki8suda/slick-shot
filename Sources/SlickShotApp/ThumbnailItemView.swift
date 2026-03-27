@@ -16,27 +16,23 @@ final class ThumbnailItemView: NSView {
     private let accentLayer = CAShapeLayer()
     private let cornerLayer = CAShapeLayer()
     private let scanlineLayer = CAGradientLayer()
+    private let glassSurfaceLayer = CAShapeLayer()
     private var isHovering = false
 
     init(frame frameRect: NSRect = .zero, feedbackPlayer: CaptureFeedbackPlaying = NullCaptureFeedbackPlayer()) {
         self.dragSessionProvider = DragSessionProvider(feedbackPlayer: feedbackPlayer)
         super.init(frame: frameRect)
         wantsLayer = true
-        layer?.cornerRadius = 20
-        layer?.masksToBounds = true
-        layer?.borderWidth = 1
-        layer?.borderColor = NSColor(calibratedRed: 0.63, green: 0.97, blue: 1, alpha: 0.34).cgColor
-        layer?.backgroundColor = NSColor(calibratedRed: 0.04, green: 0.08, blue: 0.11, alpha: 0.3).cgColor
-        layer?.shadowColor = NSColor(calibratedRed: 0.27, green: 0.8, blue: 0.98, alpha: 0.64).cgColor
-        layer?.shadowOpacity = 0.28
-        layer?.shadowRadius = 24
+        layer?.masksToBounds = false
+        layer?.backgroundColor = NSColor.clear.cgColor
+        layer?.shadowColor = NSColor(calibratedRed: 0.82, green: 0.94, blue: 1, alpha: 0.24).cgColor
+        layer?.shadowOpacity = 0.18
+        layer?.shadowRadius = 18
         layer?.shadowOffset = CGSize(width: 0, height: 14)
 
         imageView.imageScaling = .scaleAxesIndependently
         imageView.translatesAutoresizingMaskIntoConstraints = false
         imageView.wantsLayer = true
-        imageView.layer?.cornerRadius = 18
-        imageView.layer?.masksToBounds = true
         addSubview(imageView)
 
         configureOverlayLayers()
@@ -84,18 +80,56 @@ final class ThumbnailItemView: NSView {
     override func layout() {
         super.layout()
         let overlayBounds = bounds.insetBy(dx: 1, dy: 1)
+        let outerShape = Self.thumbnailFramePath(in: overlayBounds.insetBy(dx: 0.5, dy: 0.5))
+        let innerShape = Self.thumbnailFramePath(in: overlayBounds.insetBy(dx: 7, dy: 7))
+        let imageShape = Self.thumbnailFramePath(in: imageView.frame.insetBy(dx: 0.5, dy: 0.5))
+
+        imageView.layer?.mask = {
+            let mask = CAShapeLayer()
+            mask.frame = imageView.bounds
+            mask.path = Self.thumbnailFramePath(in: imageView.bounds.insetBy(dx: 0.5, dy: 0.5)).cgPath
+            return mask
+        }()
+
         glowLayer.frame = overlayBounds.insetBy(dx: -10, dy: -10)
         sheenLayer.frame = overlayBounds
         scanlineLayer.frame = overlayBounds
+        glassSurfaceLayer.frame = overlayBounds
         rimLayer.frame = overlayBounds
         gridLayer.frame = overlayBounds
         accentLayer.frame = overlayBounds
         cornerLayer.frame = overlayBounds
-        let roundedRect = overlayBounds.insetBy(dx: 1.5, dy: 1.5)
-        accentLayer.path = NSBezierPath(roundedRect: roundedRect, xRadius: 18, yRadius: 18).cgPath
-        rimLayer.path = NSBezierPath(roundedRect: roundedRect.insetBy(dx: 5, dy: 5), xRadius: 14, yRadius: 14).cgPath
+
+        glassSurfaceLayer.path = outerShape.cgPath
+        accentLayer.path = outerShape.cgPath
+        rimLayer.path = innerShape.cgPath
         gridLayer.path = Self.gridPath(in: overlayBounds.insetBy(dx: 10, dy: 10), spacing: 22).cgPath
-        cornerLayer.path = Self.cornerAccentPath(in: overlayBounds, length: 18, inset: 10).cgPath
+        cornerLayer.path = nil
+
+        glowLayer.mask = {
+            let mask = CAShapeLayer()
+            mask.frame = glowLayer.bounds
+            mask.path = outerShape.cgPath
+            return mask
+        }()
+        sheenLayer.mask = {
+            let mask = CAShapeLayer()
+            mask.frame = sheenLayer.bounds
+            mask.path = outerShape.cgPath
+            return mask
+        }()
+        scanlineLayer.mask = {
+            let mask = CAShapeLayer()
+            mask.frame = scanlineLayer.bounds
+            mask.path = imageShape.cgPath
+            return mask
+        }()
+        gridLayer.mask = {
+            let mask = CAShapeLayer()
+            mask.frame = gridLayer.bounds
+            mask.path = innerShape.cgPath
+            return mask
+        }()
     }
 
     override func updateTrackingAreas() {
@@ -150,9 +184,12 @@ final class ThumbnailItemView: NSView {
     }
 
     private func configureOverlayLayers() {
+        glassSurfaceLayer.fillColor = NSColor(calibratedRed: 0.08, green: 0.12, blue: 0.15, alpha: 0.16).cgColor
+        glassSurfaceLayer.strokeColor = nil
+
         glowLayer.colors = [
-            NSColor(calibratedRed: 0.8, green: 0.99, blue: 1, alpha: 0.16).cgColor,
-            NSColor(calibratedRed: 0.42, green: 0.93, blue: 1, alpha: 0.12).cgColor,
+            NSColor(calibratedRed: 0.9, green: 0.98, blue: 1, alpha: 0.1).cgColor,
+            NSColor(calibratedRed: 0.78, green: 0.94, blue: 1, alpha: 0.07).cgColor,
             NSColor.clear.cgColor
         ]
         glowLayer.locations = [0, 0.42, 1]
@@ -195,6 +232,7 @@ final class ThumbnailItemView: NSView {
         cornerLayer.lineWidth = 1.6
         cornerLayer.lineCap = .round
 
+        layer?.addSublayer(glassSurfaceLayer)
         layer?.addSublayer(glowLayer)
         layer?.addSublayer(sheenLayer)
         layer?.addSublayer(scanlineLayer)
@@ -211,14 +249,8 @@ final class ThumbnailItemView: NSView {
         CATransaction.begin()
         CATransaction.setAnimationDuration(0.18)
         CATransaction.setAnimationTimingFunction(CAMediaTimingFunction(name: .easeOut))
-        layer?.borderColor = NSColor(
-            calibratedRed: 0.7,
-            green: 0.98,
-            blue: 1,
-            alpha: isHovering ? 0.52 : 0.34
-        ).cgColor
-        layer?.shadowOpacity = isHovering ? 0.38 : 0.28
-        layer?.shadowRadius = isHovering ? 28 : 24
+        layer?.shadowOpacity = isHovering ? 0.24 : 0.18
+        layer?.shadowRadius = isHovering ? 22 : 18
         accentLayer.strokeColor = NSColor(
             calibratedRed: 0.68,
             green: 0.98,
@@ -232,6 +264,37 @@ final class ThumbnailItemView: NSView {
             alpha: isHovering ? 0.12 : 0.08
         ).cgColor
         CATransaction.commit()
+    }
+
+    private static func thumbnailFramePath(in rect: CGRect) -> NSBezierPath {
+        let path = NSBezierPath()
+        let cornerCut = min(max(min(rect.width, rect.height) * 0.055, 7), 9)
+        let stepWidth = cornerCut
+        let stepHeight = min(max(rect.height * 0.5, 56), 74)
+        let stepBottomOffset = min(max(rect.height * 0.2, 22), 30)
+
+        let leftX = rect.minX
+        let rightX = rect.maxX - stepWidth
+        let outerStepX = rect.maxX
+        let topY = rect.maxY
+        let bottomY = rect.minY
+        let stepBottomY = bottomY + stepBottomOffset
+        let stepTopY = stepBottomY + stepHeight
+
+        path.move(to: CGPoint(x: leftX + cornerCut, y: topY))
+        path.line(to: CGPoint(x: rightX - cornerCut, y: topY))
+        path.line(to: CGPoint(x: rightX, y: topY - cornerCut))
+        path.line(to: CGPoint(x: rightX, y: stepTopY))
+        path.line(to: CGPoint(x: outerStepX, y: stepTopY - cornerCut))
+        path.line(to: CGPoint(x: outerStepX, y: stepBottomY + cornerCut))
+        path.line(to: CGPoint(x: rightX, y: stepBottomY))
+        path.line(to: CGPoint(x: rightX, y: bottomY + cornerCut))
+        path.line(to: CGPoint(x: rightX - cornerCut, y: bottomY))
+        path.line(to: CGPoint(x: leftX + cornerCut, y: bottomY))
+        path.line(to: CGPoint(x: leftX, y: bottomY + cornerCut))
+        path.line(to: CGPoint(x: leftX, y: topY - cornerCut))
+        path.close()
+        return path
     }
 
     private static func cornerAccentPath(in rect: CGRect, length: CGFloat, inset: CGFloat) -> NSBezierPath {

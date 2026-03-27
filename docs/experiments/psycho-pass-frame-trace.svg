@@ -1,0 +1,93 @@
+<svg width="960" height="720" viewBox="0 0 480 360" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <image href="./psycho-pass-former-source.jpg" x="0" y="0" width="480" height="360" />
+
+  <path
+    d="M94 53
+       L121 55
+       L167 59
+       L226 63
+       L286 67
+       L336 71
+       L371 75
+       L392 80
+       L401 87
+       L402 229
+       L394 238
+       L371 240
+       L345 241
+       L333 242
+       L328 254
+       L305 252
+       L274 250
+       L247 248
+       L224 268
+       L202 267
+       L173 265
+       L144 263
+       L129 255
+       L127 232
+       L107 230
+       L95 228
+       L87 220
+       L88 197
+       L89 168
+       L90 141
+       L92 113
+       L94 53"
+    stroke="#1FE3FF"
+    stroke-width="2.2"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+  />
+
+  <path
+    d="M335 104
+       L366 107
+       L380 110
+       L389 117"
+    stroke="#FF5E7A"
+    stroke-width="1.8"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+  />
+  <path
+    d="M336 133
+       L370 136
+       L384 140
+       L393 147"
+    stroke="#FF5E7A"
+    stroke-width="1.8"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+  />
+  <path
+    d="M338 164
+       L372 167
+       L386 171
+       L395 178"
+    stroke="#FF5E7A"
+    stroke-width="1.8"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+  />
+  <path
+    d="M339 194
+       L372 197
+       L385 201
+       L394 208"
+    stroke="#FF5E7A"
+    stroke-width="1.8"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+  />
+  <path
+    d="M340 224
+       L364 226
+       L374 229
+       L381 233"
+    stroke="#FF5E7A"
+    stroke-width="1.8"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+  />
+</svg>
