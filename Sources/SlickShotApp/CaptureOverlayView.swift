@@ -10,6 +10,7 @@ final class CaptureOverlayView: NSView {
     private var currentPoint: CGPoint?
     private var displayedReticleRect: CGRect?
     private var pendingReticleUpdate: DispatchWorkItem?
+    private var pendingOuterFrameReveal: DispatchWorkItem?
     private let topEdgeLayer = CAShapeLayer()
     private let bottomEdgeLayer = CAShapeLayer()
     private let leftEdgeLayer = CAShapeLayer()
@@ -61,6 +62,7 @@ final class CaptureOverlayView: NSView {
         startPoint = point
         currentPoint = point
         pendingReticleUpdate?.cancel()
+        pendingOuterFrameReveal?.cancel()
         cancelReticleAnimations()
         displayedReticleRect = nil
         updateReticleLayers(animated: false)
@@ -69,6 +71,7 @@ final class CaptureOverlayView: NSView {
 
     override func mouseDragged(with event: NSEvent) {
         currentPoint = convert(event.locationInWindow, from: nil)
+        pendingOuterFrameReveal?.cancel()
         cancelReticleAnimations()
         displayedReticleRect = nil
         updateReticleLayers(animated: false)
@@ -82,6 +85,7 @@ final class CaptureOverlayView: NSView {
             startPoint = nil
             currentPoint = nil
             pendingReticleUpdate?.cancel()
+            pendingOuterFrameReveal?.cancel()
             displayedReticleRect = nil
             updateReticleLayers(animated: false)
             needsDisplay = true
@@ -239,8 +243,8 @@ final class CaptureOverlayView: NSView {
         leftEdgeLayer.path = edgePaths.left
         rightEdgeLayer.path = edgePaths.right
         lagCornerLayer.path = cornerPath
-        lagGlowLayer.opacity = 1
-        outerFrameLayer.opacity = 1
+        lagGlowLayer.opacity = 0
+        outerFrameLayer.opacity = animated ? 0 : 1
         topEdgeLayer.opacity = 1
         bottomEdgeLayer.opacity = 1
         leftEdgeLayer.opacity = 1
@@ -249,6 +253,7 @@ final class CaptureOverlayView: NSView {
         CATransaction.commit()
 
         if animated {
+            scheduleOuterFrameReveal()
             animateLineExpansion(for: topEdgeLayer, duration: 0.41)
             animateLineExpansion(for: bottomEdgeLayer, duration: 0.41)
             animateLineExpansion(for: leftEdgeLayer, duration: 0.41)
@@ -272,6 +277,19 @@ final class CaptureOverlayView: NSView {
         }
         pendingReticleUpdate = workItem
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.14, execute: workItem)
+    }
+
+    private func scheduleOuterFrameReveal() {
+        pendingOuterFrameReveal?.cancel()
+        let workItem = DispatchWorkItem { [weak self] in
+            guard let self, self.selectionRect != nil, self.displayedReticleRect != nil else { return }
+            CATransaction.begin()
+            CATransaction.setDisableActions(true)
+            self.outerFrameLayer.opacity = 1
+            CATransaction.commit()
+        }
+        pendingOuterFrameReveal = workItem
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.12, execute: workItem)
     }
 
     private func animateLineExpansion(for layer: CAShapeLayer, duration: CFTimeInterval) {
