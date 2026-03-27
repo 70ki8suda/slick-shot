@@ -230,7 +230,7 @@ final class CaptureOverlayView: NSView {
             self.displayedReticleRect = seedRect
             self.updateReticleLayers(animated: false)
 
-            DispatchQueue.main.async { [weak self] in
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.045) { [weak self] in
                 guard let self, self.selectionRect != nil else { return }
                 self.displayedReticleRect = settledRect
                 self.updateReticleLayers(animated: true)
@@ -370,8 +370,8 @@ final class CaptureOverlayView: NSView {
 
     private static func centerSeedRect(for rect: CGRect) -> CGRect {
         let seedSize = CGSize(
-            width: min(max(rect.width * 0.18, 18), 32),
-            height: min(max(rect.height * 0.18, 18), 32)
+            width: min(max(rect.width * 0.06, 4), 10),
+            height: min(max(rect.height * 0.06, 4), 10)
         )
         return CGRect(
             x: rect.midX - (seedSize.width / 2),
