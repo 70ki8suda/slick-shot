@@ -564,6 +564,12 @@ h3 {
   color: rgba(77, 112, 129, 0.86);
 }
 
+.pricing-kicker {
+  margin-bottom: 18px;
+  font-size: 15px;
+  letter-spacing: 0.12em;
+}
+
 .split-section,
 .use-case-section,
 .pricing-section,
