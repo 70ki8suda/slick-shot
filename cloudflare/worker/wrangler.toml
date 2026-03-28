@@ -1,0 +1,21 @@
+name = "slick-shot-worker"
+main = "src/index.ts"
+compatibility_date = "2026-03-28"
+workers_dev = false
+
+[[routes]]
+pattern = "slick-shot.com/api/*"
+zone_name = "slick-shot.com"
+
+[[routes]]
+pattern = "www.slick-shot.com/api/*"
+zone_name = "slick-shot.com"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "slick-shot"
+database_id = "REPLACE_ME"
+
+[[r2_buckets]]
+binding = "DOWNLOADS"
+bucket_name = "slick-shot-downloads"

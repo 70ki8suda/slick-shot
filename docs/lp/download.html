@@ -25,15 +25,13 @@
         <a class="ghost-button" href="./thanks.html">購入完了</a>
       </header>
 
-      <main class="download-layout">
+      <main class="download-layout" data-page="download">
         <section class="download-card glass-card">
           <p class="section-kicker">Download</p>
           <h1>SlickShot for macOS</h1>
-          <p class="hero-lead">
-            初回配布は notarized された `SlickShot.zip` または `SlickShot.dmg` を想定しています。インストール後のアップデートは Sparkle による自動更新で配信できます。
-          </p>
+          <p class="hero-lead" data-download-status>メールのリンクを確認しています...</p>
           <div class="cta-row">
-            <a class="primary-button" data-download-link href="https://downloads.slick-shot.com/SlickShot.zip">SlickShot をダウンロード</a>
+            <a class="primary-button" href="mailto:telekinesick@gmail.com" data-download-support>サポートへ連絡</a>
           </div>
           <ul class="hero-meta">
             <li>macOS専用</li>
@@ -52,9 +50,22 @@
             <li>必要に応じて画面収録権限を許可する</li>
           </ol>
         </section>
+
+        <section class="download-card glass-card">
+          <p class="section-kicker">Re-send</p>
+          <h2>再ダウンロードリンクを送る</h2>
+          <form data-redownload-form hidden class="refund-form">
+            <label>
+              購入時のメールアドレス
+              <input type="email" name="email" autocomplete="email" required />
+            </label>
+            <button class="primary-button" type="submit">再送する</button>
+            <p class="pricing-note" data-redownload-status></p>
+          </form>
+        </section>
       </main>
     </div>
 
-    <script src="./script.js"></script>
+    <script type="module" src="./script.js"></script>
   </body>
 </html>

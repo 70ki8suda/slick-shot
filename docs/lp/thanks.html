@@ -25,21 +25,23 @@
         <a class="ghost-button" href="./download.html">ダウンロード</a>
       </header>
 
-      <main class="thanks-shell">
-        <section class="thanks-card glass-card">
+      <main class="thanks-shell" data-page="thanks">
+        <section class="thanks-card glass-card" data-thanks-card>
           <p class="section-kicker">Thank You</p>
           <h1>購入ありがとうございます。</h1>
-          <p class="hero-lead">
-            そのままダウンロードページへ進めます。SlickShot は macOS 専用アプリです。初回インストール後のアップデートは Sparkle ベースでアプリ内から配信できます。
-          </p>
+          <p class="hero-lead" data-thanks-status>支払いを確認しています...</p>
           <div class="cta-row">
-            <a class="primary-button" href="./download.html">ダウンロードへ進む</a>
+            <a class="primary-button" data-thanks-download hidden href="./download.html">ダウンロードへ進む</a>
             <a class="secondary-button" href="./index.html">LPに戻る</a>
           </div>
+          <p class="pricing-note">
+            うまく進まない場合は <a class="inline-link" data-thanks-support href="mailto:telekinesick@gmail.com">サポート</a>
+            へご連絡ください。
+          </p>
         </section>
       </main>
     </div>
 
-    <script src="./script.js"></script>
+    <script type="module" src="./script.js"></script>
   </body>
 </html>
