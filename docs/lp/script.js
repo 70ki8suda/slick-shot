@@ -50,3 +50,32 @@ document.querySelectorAll("[data-refund-form]").forEach((form) => {
     window.location.href = `mailto:${config.refundEmail}?subject=${subject}&body=${body}`;
   });
 });
+
+const heroVideo = document.querySelector("[data-hero-video]");
+
+if (heroVideo instanceof HTMLVideoElement) {
+  heroVideo.volume = 0.7;
+
+  const enableHeroAudio = async () => {
+    cleanupAudioListeners();
+
+    try {
+      heroVideo.muted = false;
+      await heroVideo.play();
+    } catch {
+      heroVideo.muted = true;
+    }
+  };
+
+  const audioGestureEvents = ["pointerdown", "keydown", "touchstart", "wheel"];
+
+  const cleanupAudioListeners = () => {
+    audioGestureEvents.forEach((eventName) => {
+      window.removeEventListener(eventName, enableHeroAudio);
+    });
+  };
+
+  audioGestureEvents.forEach((eventName) => {
+    window.addEventListener(eventName, enableHeroAudio, { once: true, passive: true });
+  });
+}

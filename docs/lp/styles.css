@@ -547,7 +547,6 @@ h3 {
 .story-step,
 .split-panel,
 .pricing-card,
-.final-cta,
 .faq-list details,
 .use-case-grid article {
   padding: 28px;
@@ -650,13 +649,6 @@ h3 {
 
 .faq-list p {
   margin-bottom: 0;
-}
-
-.final-cta {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 18px;
 }
 
 .thanks-shell,
@@ -840,7 +832,6 @@ h3 {
   .feature-grid,
   .experience-grid,
   .use-case-grid,
-  .final-cta,
   .download-layout {
     grid-template-columns: 1fr;
   }
@@ -859,9 +850,6 @@ h3 {
     min-height: 520px;
   }
 
-  .final-cta {
-    align-items: flex-start;
-  }
 }
 
 @media (max-width: 720px) {
@@ -902,7 +890,6 @@ h3 {
   .pricing-card,
   .story-step,
   .split-panel,
-  .final-cta,
   .thanks-card,
   .download-card,
   .faq-list details,
