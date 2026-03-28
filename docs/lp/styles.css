@@ -142,6 +142,21 @@ body::before {
     box-shadow 180ms ease;
 }
 
+.topbar-buy-button {
+  min-height: 58px;
+  padding: 0 34px;
+  border: 1px solid rgba(255, 255, 255, 0.94);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.92), rgba(230, 248, 255, 0.64));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.96),
+    0 10px 24px rgba(135, 214, 245, 0.16);
+  font-size: 17px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--ink);
+}
+
 .ghost-button,
 .secondary-button {
   border: 1px solid rgba(255, 255, 255, 0.82);
