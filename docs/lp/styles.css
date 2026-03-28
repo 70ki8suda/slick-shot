@@ -842,12 +842,13 @@ h3 {
   }
 
   .hero {
-    gap: 28px;
+    gap: 20px;
     min-height: auto;
   }
 
   .hero-stage {
-    min-height: 520px;
+    min-height: auto;
+    padding: 8px 0 0;
   }
 
 }
@@ -858,7 +859,9 @@ h3 {
   }
 
   .hero {
-    padding-top: 32px;
+    gap: 16px;
+    padding-top: 24px;
+    padding-bottom: 40px;
   }
 
   h1 {
@@ -880,7 +883,19 @@ h3 {
   }
 
   .hero-stage {
-    min-height: 420px;
+    min-height: auto;
+    padding: 4px 0 0;
+  }
+
+  .story-strip {
+    padding: 0 0 56px;
+  }
+
+  .split-section,
+  .use-case-section,
+  .pricing-section,
+  .faq-section {
+    padding: 24px 0 56px;
   }
 
   .hero-video {
