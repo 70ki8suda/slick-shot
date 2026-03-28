@@ -50,9 +50,14 @@ export async function stripeWebhook(
     return Response.json({ ok: true });
   }
 
-  if (event.type === "charge.refunded" || event.type === "charge.refund.updated") {
-    const charge = event.data.object as Stripe.Charge;
-    const paymentIntentId = typeof charge.payment_intent === "string" ? charge.payment_intent : charge.payment_intent?.id;
+  if (
+    event.type === "charge.refunded" ||
+    event.type === "charge.refund.updated" ||
+    event.type === "refund.updated"
+  ) {
+    const object = event.data.object as Stripe.Charge | Stripe.Refund;
+    const paymentIntentId =
+      typeof object.payment_intent === "string" ? object.payment_intent : object.payment_intent?.id;
     if (paymentIntentId) {
       const purchase = await deps.findPurchaseByPaymentIntentId(paymentIntentId);
       if (purchase && purchase.status !== "refunded") {

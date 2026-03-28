@@ -9,15 +9,19 @@ It uses the native macOS interactive region capture flow, then routes the result
 SlickShot is set up for a direct-sale flow:
 
 - LP + Stripe Checkout for the purchase
-- `thanks.html` / `download.html` pages for the post-purchase handoff
+- clean URLs at `/thanks` and `/download` for the post-purchase handoff
 - Sparkle for in-app automatic updates
 - Developer ID signing + notarized release artifacts for website distribution
+- Cloudflare Worker + D1 + R2 + Resend for gated fulfillment
 
 Relevant files:
 
 - `docs/lp/index.html`
 - `docs/lp/thanks.html`
 - `docs/lp/download.html`
+- `docs/lp/_redirects`
+- `cloudflare/worker`
+- `cloudflare/d1/001_initial_paid_download_flow.sql`
 - `Scripts/build-release.sh`
 - `Scripts/generate-appcast.sh`
 
@@ -109,11 +113,55 @@ To generate or refresh the Sparkle appcast feed after placing release archives i
 ./Scripts/generate-appcast.sh /Users/yasudanaoki/Desktop/slick-shot/dist/updates
 ```
 
-For direct sales, wire the LP CTA to your Stripe Payment Link and use:
+## Paid Download Fulfillment
 
-- Stripe success URL -> `docs/lp/thanks.html`
-- Download CTA -> your hosted `SlickShot.zip` or `SlickShot.dmg`
-- Sparkle `SUFeedURL` -> your hosted `appcast.xml`
+The direct-sale flow is split between Pages and a same-origin Worker:
+
+- Pages serves the landing page and the `/thanks` and `/download` UI routes
+- `_redirects` rewrites `/thanks` to `thanks.html` and `/download` to `download.html`
+- The Cloudflare Worker is mounted on `https://slick-shot.com/api/*`
+- The Worker verifies Stripe sessions, stores purchase state in D1, streams gated downloads from R2, and sends re-download email through Resend
+
+### Required Worker secrets
+
+- `STRIPE_SECRET_KEY`
+- `STRIPE_WEBHOOK_SECRET`
+- `RESEND_API_KEY`
+- `RESEND_FROM_EMAIL`
+- `APP_URL=https://slick-shot.com`
+- `DOWNLOAD_BASE_URL=https://downloads.slick-shot.com`
+
+### Required infrastructure bindings
+
+- D1 binding: `DB`
+- R2 binding: `DOWNLOADS`
+- Worker route: `slick-shot.com/api/*`
+- Worker route: `www.slick-shot.com/api/*`
+
+### Stripe setup
+
+- Payment Link success URL: `https://slick-shot.com/thanks?session_id={CHECKOUT_SESSION_ID}`
+- Webhook endpoint: `https://slick-shot.com/api/stripe/webhook`
+
+### D1 migration
+
+Run the initial schema:
+
+```bash
+cd /Users/yasudanaoki/Desktop/slick-shot/cloudflare/worker
+npx wrangler d1 execute slick-shot --file ../d1/001_initial_paid_download_flow.sql
+```
+
+### Artifact storage
+
+- Upload the notarized release archive to `downloads.slick-shot.com/SlickShot.zip`
+- Sparkle `SUFeedURL` should point to `https://downloads.slick-shot.com/appcast.xml`
+
+For direct sales, wire the LP CTA to your Stripe Payment Link and rely on:
+
+- `https://slick-shot.com/thanks?session_id=...` for purchase confirmation
+- `https://slick-shot.com/download?token=...` for immediate and emailed re-download links
+- the same-origin Worker route so relative `/api/*` requests from static Pages succeed without extra client config
 
 ## Hotkey
 
