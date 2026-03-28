@@ -926,7 +926,22 @@ h3 {
   }
 
   .story-strip {
-    padding: 0 0 56px;
+    gap: 16px;
+    padding: 0 0 48px;
+  }
+
+  .story-step {
+    padding: 20px;
+  }
+
+  .story-step h2 {
+    margin-bottom: 10px;
+    font-size: 28px;
+  }
+
+  .story-step p {
+    font-size: 15px;
+    line-height: 1.55;
   }
 
   .split-section,
