@@ -864,6 +864,38 @@ h3 {
     width: min(100vw - 24px, 1200px);
   }
 
+  .topbar {
+    top: 12px;
+    gap: 12px;
+    margin-top: 12px;
+    padding: 10px 14px;
+  }
+
+  .brand {
+    gap: 10px;
+  }
+
+  .brand-mark {
+    width: 28px;
+    height: 28px;
+    border-radius: 10px;
+    font-size: 16px;
+  }
+
+  .brand-copy {
+    font-size: 11px;
+  }
+
+  .brand-copy strong {
+    font-size: 12px;
+  }
+
+  .topbar-buy-button {
+    min-height: 46px;
+    padding: 0 24px;
+    font-size: 15px;
+  }
+
   .hero {
     gap: 16px;
     padding-top: 24px;
