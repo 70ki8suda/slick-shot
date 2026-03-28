@@ -738,22 +738,6 @@ h3 {
   line-height: 1.8;
 }
 
-.developer-section {
-  padding: 48px 0;
-}
-
-.developer-card {
-  border-radius: 34px;
-  padding: 40px;
-}
-
-.developer-links {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 14px;
-  margin-top: 24px;
-}
-
 .refund-form {
   display: grid;
   gap: 18px;
