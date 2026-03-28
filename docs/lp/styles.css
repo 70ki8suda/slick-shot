@@ -193,7 +193,7 @@ body::before {
   align-items: start;
   gap: 28px;
   min-height: auto;
-  padding: 92px 0 72px;
+  padding: 56px 0 72px;
 }
 
 .eyebrow {
@@ -869,12 +869,8 @@ h3 {
     width: min(100vw - 24px, 1200px);
   }
 
-  .topbar {
-    border-radius: 24px;
-  }
-
   .hero {
-    padding-top: 54px;
+    padding-top: 32px;
   }
 
   h1 {
