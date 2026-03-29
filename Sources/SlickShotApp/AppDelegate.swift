@@ -15,6 +15,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var updateController: UpdateController?
     private var demoCaptureModeStore: DemoCaptureModeStore?
     private var hotkeyConfiguration = HotkeyConfiguration()
+    private let exposesDemoCaptureMode = AppBundleMetadata.exposesDemoCaptureMode()
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         let store = ScreenshotStore()
@@ -45,8 +46,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             captureService: captureService,
             overlayFactory: LiveCaptureOverlaySessionFactory(
                 feedbackPlayer: feedbackPlayer,
-                presentationModeProvider: { [weak demoCaptureModeStore] in
-                    (demoCaptureModeStore?.isEnabled ?? false) ? .demoRecording : .standard
+                presentationModeProvider: { [weak self, weak demoCaptureModeStore] in
+                    guard self?.exposesDemoCaptureMode == true else { return .standard }
+                    return (demoCaptureModeStore?.isEnabled ?? false) ? .demoRecording : .standard
                 }
             ),
             settingsWindowController: settingsWindowController,
@@ -56,15 +58,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             hotkeyDisplayStringProvider: { [weak self] in
                 self?.hotkeyConfiguration.displayString ?? HotkeyConfiguration.default.displayString
             },
-            demoCaptureModeProvider: { [weak demoCaptureModeStore] in
-                demoCaptureModeStore?.isEnabled ?? false
+            demoCaptureModeProvider: { [weak self, weak demoCaptureModeStore] in
+                guard self?.exposesDemoCaptureMode == true else { return false }
+                return demoCaptureModeStore?.isEnabled ?? false
             },
             onCaptureScreenshot: { [weak self] in
                 self?.startCapture()
             },
-            onToggleDemoCaptureMode: { [weak self] in
+            onToggleDemoCaptureMode: exposesDemoCaptureMode ? { [weak self] in
                 self?.toggleDemoCaptureMode()
-            },
+            } : nil,
             onCheckForUpdates: { [weak self] in
                 self?.updateController?.checkForUpdates()
             },
@@ -116,6 +119,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func toggleDemoCaptureMode() {
+        guard exposesDemoCaptureMode else { return }
         guard let demoCaptureModeStore else { return }
         demoCaptureModeStore.isEnabled.toggle()
         statusItemController?.install()

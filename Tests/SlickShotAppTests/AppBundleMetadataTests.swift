@@ -17,6 +17,16 @@ struct AppBundleMetadataTests {
         #expect(AppBundleMetadata.sparklePublicEDKey == "REPLACE_WITH_SPARKLE_PUBLIC_ED25519_KEY")
     }
 
+    @Test func distributionBuild_hidesDemoCaptureMode() {
+        let distributionBundle = BundleInfoStub([
+            AppBundleMetadata.distributionBuildInfoKey: true
+        ])
+        let developmentBundle = BundleInfoStub([:])
+
+        #expect(AppBundleMetadata.exposesDemoCaptureMode(bundle: developmentBundle) == true)
+        #expect(AppBundleMetadata.exposesDemoCaptureMode(bundle: distributionBundle) == false)
+    }
+
     @Test func installerScript_buildsIconAndResignsAppBundle() throws {
         let scriptURL = URL(fileURLWithPath: "/Users/yasudanaoki/Desktop/slick-shot/Scripts/install-app.sh")
         let script = try String(contentsOf: scriptURL, encoding: .utf8)
@@ -31,6 +41,14 @@ struct AppBundleMetadataTests {
         #expect(script.contains("install_name_tool -add_rpath \"@executable_path/../Frameworks\""))
         #expect(script.contains("<key>SUFeedURL</key>"))
         #expect(script.contains("<key>SUPublicEDKey</key>"))
+    }
+
+    @Test func releaseScript_marksDistributionBuildToHideDemoCaptureMode() throws {
+        let scriptURL = URL(fileURLWithPath: "/Users/yasudanaoki/Desktop/slick-shot/Scripts/build-release.sh")
+        let script = try String(contentsOf: scriptURL, encoding: .utf8)
+
+        #expect(script.contains("<key>\(AppBundleMetadata.distributionBuildInfoKey)</key>"))
+        #expect(script.contains("<true/>"))
     }
 
     @Test func lpIncludesThanksAndDownloadPagesForDirectSaleFlow() throws {
@@ -68,5 +86,17 @@ struct AppBundleMetadataTests {
         #expect(readme.contains("Sparkle"))
         #expect(readme.contains("Stripe"))
         #expect(readme.contains("build-release.sh"))
+    }
+}
+
+private struct BundleInfoStub: BundleInfoProviding {
+    let infoDictionary: [String: Any]
+
+    init(_ infoDictionary: [String: Any]) {
+        self.infoDictionary = infoDictionary
+    }
+
+    func object(forInfoDictionaryKey key: String) -> Any? {
+        infoDictionary[key]
     }
 }

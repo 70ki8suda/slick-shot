@@ -77,6 +77,8 @@ cat > "$CONTENTS_DIR/Info.plist" <<PLIST
   <string>14.0</string>
   <key>LSUIElement</key>
   <true/>
+  <key>SlickShotDistributionBuild</key>
+  <true/>
   <key>NSPrincipalClass</key>
   <string>NSApplication</string>
   <key>SUEnableAutomaticChecks</key>

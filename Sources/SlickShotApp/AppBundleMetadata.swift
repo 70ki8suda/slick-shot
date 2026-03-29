@@ -1,5 +1,11 @@
 import Foundation
 
+protocol BundleInfoProviding {
+    func object(forInfoDictionaryKey key: String) -> Any?
+}
+
+extension Bundle: BundleInfoProviding {}
+
 enum AppBundleMetadata {
     static let appName = "SlickShot"
     static let executableName = "SlickShot"
@@ -10,4 +16,9 @@ enum AppBundleMetadata {
     static let iconFileName = "AppIcon"
     static let sparkleFeedURL = "https://downloads.slick-shot.com/appcast.xml"
     static let sparklePublicEDKey = "REPLACE_WITH_SPARKLE_PUBLIC_ED25519_KEY"
+    static let distributionBuildInfoKey = "SlickShotDistributionBuild"
+
+    static func exposesDemoCaptureMode(bundle: BundleInfoProviding = Bundle.main) -> Bool {
+        (bundle.object(forInfoDictionaryKey: distributionBuildInfoKey) as? Bool) != true
+    }
 }
