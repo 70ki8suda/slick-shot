@@ -1,5 +1,6 @@
 .build/
 node_modules/
 cloudflare/worker/node_modules/
+cloudflare/worker/secrets.json
 *.swp
 *.DS_Store
