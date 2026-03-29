@@ -1,5 +1,5 @@
 export const config = {
-  stripeLink: "https://buy.stripe.com/test_5kQ28r6Ed3Rd1rk1ZY5sA00",
+  stripeLink: "https://buy.stripe.com/aFa4gAbMJ4lEeYW3fi7AI01",
   refundEmail: "telekinesick@gmail.com",
   supportEmail: "telekinesick@gmail.com",
 };
@@ -31,12 +31,6 @@ export function applyStaticConfig(doc = document, win = window, runtimeConfig = 
   doc.querySelectorAll("[data-stripe-link]").forEach((link) => {
     if (link instanceof HTMLAnchorElement) {
       link.href = runtimeConfig.stripeLink;
-      link.addEventListener("click", (event) => {
-        if (runtimeConfig.stripeLink.includes("/test_")) {
-          event.preventDefault();
-          runtimeConfig.alert("いまは Stripe のテスト決済リンクです。本番公開前に live の Payment Link へ差し替えてください。");
-        }
-      });
     }
   });
 
